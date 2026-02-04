@@ -1,0 +1,70 @@
+/* ===== CONFETTI CELEBRATION EFFECT ===== */
+
+.confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 9999;
+}
+
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    opacity: 0;
+    animation: confetti-fall 3s ease-out forwards;
+}
+
+.confetti.circle {
+    border-radius: 50%;
+}
+
+.confetti.square {
+    border-radius: 2px;
+}
+
+.confetti.triangle {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 10px solid currentColor;
+    background: transparent !important;
+}
+
+@keyframes confetti-fall {
+    0% {
+        opacity: 1;
+        transform: translateY(-100px) rotate(0deg) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(100vh) rotate(720deg) scale(0.5);
+    }
+}
+
+/* Variation animations */
+.confetti:nth-child(odd) {
+    animation-duration: 2.5s;
+}
+
+.confetti:nth-child(3n) {
+    animation-duration: 3.5s;
+}
+
+.confetti:nth-child(4n) {
+    animation-delay: 0.1s;
+}
+
+.confetti:nth-child(5n) {
+    animation-delay: 0.2s;
+}

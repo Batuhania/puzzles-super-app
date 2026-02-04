@@ -1,0 +1,609 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Kakuro - Bulmaca Super App</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+
+    <!-- Scripts -->
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <script src="../js/random.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        primary: '#3b82f6',
+                        accent: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .kakuro-grid {
+            display: grid;
+            gap: 2px;
+            background: var(--border);
+            padding: 4px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1;
+        }
+
+        .kakuro-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            border-radius: 4px;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .cell-black {
+            background: var(--bg-app);
+            color: var(--text-main);
+        }
+
+        .cell-clue {
+            background: var(--bg-card);
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .cell-clue::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent 49.5%, var(--border) 49.5%, var(--border) 50.5%, transparent 50.5%);
+        }
+
+        .clue-down {
+            position: absolute;
+            bottom: 2px;
+            left: 3px;
+            color: var(--zip-color);
+            z-index: 1;
+        }
+
+        .clue-right {
+            position: absolute;
+            top: 2px;
+            right: 3px;
+            color: var(--accent);
+            z-index: 1;
+        }
+
+        .cell-entry {
+            background: var(--bg-card);
+            color: var(--text-main);
+            cursor: pointer;
+            border: 1px solid var(--border);
+        }
+
+        .cell-entry:hover {
+            filter: brightness(0.95);
+        }
+
+        .cell-entry.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .cell-entry.error {
+            background: #fecaca !important;
+            color: #dc2626 !important;
+        }
+
+        html.dark .cell-entry.error {
+            background: #7f1d1d !important;
+            color: #fca5a5 !important;
+        }
+
+        .cell-entry.correct {
+            background: #bbf7d0 !important;
+            color: #15803d !important;
+        }
+
+        html.dark .cell-entry.correct {
+            background: #14532d !important;
+            color: #86efac !important;
+        }
+
+        /* Numpad */
+        .numpad {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .numpad-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            color: var(--text-main);
+            font-size: 1.25rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .numpad-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--primary);
+        }
+
+        .numpad-btn:active {
+            transform: scale(0.95);
+        }
+
+        .numpad-btn.clear {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        html.dark .numpad-btn.clear {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .win-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .win-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .win-content {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            max-width: 320px;
+            border: 1px solid var(--border);
+        }
+
+        .win-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .win-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .win-text {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .win-btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            text-decoration: none;
+            margin-bottom: 0.5rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .win-btn.secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gray-50 dark:bg-darker text-gray-800 dark:text-gray-100 min-h-screen flex flex-col font-['Inter'] transition-colors duration-300 select-none">
+
+    <!-- Header -->
+    <header class="game-header">
+        <a href="../index.html" class="back-btn">←</a>
+        <h1>➕ Kakuro</h1>
+        <div class="game-actions">
+            <button class="action-btn" onclick="openTutorial()">❓</button>
+            <button class="action-btn" onclick="game.reset()">🔄</button>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="game.newGame('random')"
+                data-i18n="btn_random">🎲 Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="game.newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+        </div>
+        <!-- Daily Mode Badge -->
+        <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅 GÜNLÜK
+            BULMACA</div>
+
+        <div class="level-selector">
+            <button id="lvl-easy" class="level-btn active" onclick="game.setDifficulty('easy')"
+                data-i18n="diff_easy">Kolay</button>
+            <button id="lvl-medium" class="level-btn" onclick="game.setDifficulty('medium')"
+                data-i18n="diff_medium">Orta</button>
+            <button id="lvl-hard" class="level-btn" onclick="game.setDifficulty('hard')"
+                data-i18n="diff_hard">Zor</button>
+        </div>
+
+        <div class="kakuro-grid" id="board"></div>
+
+        <div class="numpad mt-6" id="numpad">
+            <button class="numpad-btn" onclick="game.input(1)">1</button>
+            <button class="numpad-btn" onclick="game.input(2)">2</button>
+            <button class="numpad-btn" onclick="game.input(3)">3</button>
+            <button class="numpad-btn" onclick="game.input(4)">4</button>
+            <button class="numpad-btn" onclick="game.input(5)">5</button>
+            <button class="numpad-btn" onclick="game.input(6)">6</button>
+            <button class="numpad-btn" onclick="game.input(7)">7</button>
+            <button class="numpad-btn" onclick="game.input(8)">8</button>
+            <button class="numpad-btn" onclick="game.input(9)">9</button>
+            <button class="numpad-btn clear" onclick="game.input(0)">⌫</button>
+        </div>
+    </main>
+
+    <!-- Tutorial Overlay -->
+    <div class="tutorial-overlay" id="tutorialOverlay">
+        <div class="tutorial-modal">
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <ul class="tutorial-steps">
+                <li data-i18n="tut_kakuro_1">Beyaz hücrelere 1-9 arası rakam gir.</li>
+                <li data-i18n="tut_kakuro_2"><strong>Sarı sayı:</strong> Sağdaki hücrelerin toplamı.</li>
+                <li data-i18n="tut_kakuro_3"><strong>Mavi sayı:</strong> Aşağıdaki hücrelerin toplamı.</li>
+                <li data-i18n="tut_kakuro_4">Aynı grupta <strong>rakam tekrar edemez!</strong></li>
+                <li data-i18n="tut_kakuro_5">Tüm hücreleri doğru doldur ve kazan!</li>
+            </ul>
+            <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div class="win-modal" id="winModal">
+        <div class="win-content">
+            <div class="win-icon">🎉</div>
+            <h2 class="win-title" data-i18n="congrats">Tebrikler!</h2>
+            <p class="win-text">Kakuro bulmacasını çözdün!</p>
+            <a href="../index.html?save=kakuro&wins=1&daily=${game?.mode === 'daily'}" class="win-btn" id="winBtn">Ana
+                Sayfa</a>
+            <button class="win-btn secondary" onclick="game.newGame(game.mode)" data-i18n="btn_new_game">Yeni
+                Oyun</button>
+        </div>
+    </div>
+
+    <script src="../js/confetti.js"></script>
+    <script>
+        // PREDEFINED PUZZLES (easier to verify than generation)
+        const PUZZLES = {
+            easy: [
+                {
+                    size: 6,
+                    grid: [
+                        ['B', 'C:0,3', 'C:0,17', 'B', 'C:0,24', 'C:0,10'],
+                        ['C:4,0', 'E', 'E', 'C:30,10', 'E', 'E'],
+                        ['C:16,0', 'E', 'E', 'E', 'E', 'E'],
+                        ['C:17,0', 'E', 'E', 'C:6,0', 'E', 'E'],
+                        ['B', 'C:3,0', 'E', 'E', 'E', 'B'],
+                        ['B', 'B', 'C:16,0', 'E', 'E', 'B']
+                    ],
+                    solution: [
+                        [0, 0, 0, 0, 0, 0],
+                        [0, 1, 3, 0, 9, 1],
+                        [0, 2, 8, 1, 6, 9],
+                        [0, 9, 8, 0, 3, 6],
+                        [0, 0, 1, 2, 6, 0],
+                        [0, 0, 0, 7, 9, 0]
+                    ]
+                }
+            ],
+            medium: [
+                {
+                    size: 7,
+                    grid: [
+                        ['B', 'B', 'C:0,16', 'C:0,24', 'B', 'C:0,17', 'C:0,29'],
+                        ['B', 'C:17,16', 'E', 'E', 'C:16,9', 'E', 'E'],
+                        ['C:23,0', 'E', 'E', 'E', 'E', 'E', 'E'],
+                        ['C:15,0', 'E', 'E', 'E', 'E', 'C:0,4', 'B'],
+                        ['B', 'C:10,4', 'E', 'E', 'C:3,7', 'E', 'E'],
+                        ['C:16,0', 'E', 'E', 'E', 'E', 'E', 'E'],
+                        ['C:6,0', 'E', 'E', 'E', 'B', 'C:4,0', 'E', 'E']
+                        //['B', 'B', 'C:11,0', 'E', 'E', 'E', 'B']
+                    ],
+                    solution: [
+                        [0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 7, 9, 0, 8, 9],
+                        [0, 9, 8, 6, 1, 2, 7],
+                        [0, 8, 1, 2, 4, 0, 0],
+                        [0, 0, 1, 3, 0, 3, 4],
+                        [0, 2, 5, 1, 6, 9, 3],
+                        [0, 1, 2, 3, 0, 1, 3]
+                    ]
+                }
+            ],
+            hard: [
+                {
+                    size: 8,
+                    grid: [
+                        ['B', 'C:0,24', 'C:0,16', 'B', 'B', 'C:0,17', 'C:0,10', 'B'],
+                        ['C:17,0', 'E', 'E', 'C:0,23', 'C:30,16', 'E', 'E', 'C:0,4'],
+                        ['C:23,0', 'E', 'E', 'E', 'E', 'E', 'E', 'E'],
+                        ['B', 'C:16,0', 'E', 'E', 'E', 'E', 'B', 'B'],
+                        ['B', 'B', 'C:3,17', 'E', 'E', 'C:11,6', 'E', 'E'],
+                        ['B', 'C:24,0', 'E', 'E', 'E', 'E', 'E', 'E'],
+                        ['C:10,0', 'E', 'E', 'E', 'E', 'B', 'C:4,0', 'E', 'E'],
+                        ['C:16,0', 'E', 'E', 'E', 'E', 'B', 'B', 'B']
+                    ],
+                    solution: [
+                        [0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 8, 9, 0, 0, 9, 8, 0],
+                        [0, 9, 7, 6, 8, 1, 2, 4],
+                        [0, 0, 7, 9, 1, 5, 0, 0],
+                        [0, 0, 0, 1, 2, 0, 2, 4],
+                        [0, 0, 8, 7, 6, 2, 1, 3],
+                        [0, 1, 2, 3, 4, 0, 0, 1, 3],
+                        [0, 7, 9, 1, 5, 0, 0, 0]
+                    ]
+                }
+            ]
+        };
+
+        const game = {
+            size: 6,
+            difficulty: 'easy',
+            mode: 'random',
+            grid: [],
+            solution: [],
+            userGrid: [],
+            selected: null,
+            rng: null,
+
+            init() {
+                const params = new URLSearchParams(window.location.search);
+                const modeParam = params.get('mode');
+                this.newGame(modeParam === 'daily' ? 'daily' : 'random');
+            },
+
+            setDifficulty(diff) {
+                this.difficulty = diff;
+                document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('lvl-' + diff).classList.add('active');
+                this.newGame(this.mode);
+            },
+
+            newGame(mode) {
+                this.mode = mode;
+                this.selected = null;
+
+                // Update mode buttons
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                if (mode === 'daily') {
+                    document.getElementById('btn-daily').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'inline-flex';
+                    const seed = SeededRandom.getDailySeed();
+                    this.rng = new SeededRandom(seed);
+                    document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                } else {
+                    document.getElementById('btn-random').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'none';
+                    this.rng = new SeededRandom(Date.now());
+                }
+
+                // Pick puzzle
+                const puzzles = PUZZLES[this.difficulty];
+                const puzzleIndex = this.rng.nextInt(0, puzzles.length - 1);
+                const puzzle = puzzles[puzzleIndex];
+
+                this.size = puzzle.size;
+                this.grid = puzzle.grid;
+                this.solution = puzzle.solution;
+                this.userGrid = this.solution.map(row => row.map(v => 0));
+
+                this.render();
+                document.getElementById('winModal').classList.remove('show');
+            },
+
+            reset() {
+                this.userGrid = this.solution.map(row => row.map(v => 0));
+                this.selected = null;
+                this.render();
+            },
+
+            render() {
+                const board = document.getElementById('board');
+                board.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
+                board.innerHTML = '';
+
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        const cellData = this.grid[r][c];
+                        const cell = document.createElement('div');
+                        cell.className = 'kakuro-cell';
+
+                        if (cellData === 'B') {
+                            cell.classList.add('cell-black');
+                        } else if (cellData.startsWith('C:')) {
+                            cell.classList.add('cell-clue');
+                            const [down, right] = cellData.replace('C:', '').split(',').map(Number);
+                            if (down > 0) {
+                                cell.innerHTML += `<span class="clue-down">${down}</span>`;
+                            }
+                            if (right > 0) {
+                                cell.innerHTML += `<span class="clue-right">${right}</span>`;
+                            }
+                        } else if (cellData === 'E') {
+                            cell.classList.add('cell-entry');
+                            const val = this.userGrid[r][c];
+                            cell.textContent = val > 0 ? val : '';
+                            cell.dataset.row = r;
+                            cell.dataset.col = c;
+
+                            if (this.selected && this.selected.r === r && this.selected.c === c) {
+                                cell.classList.add('selected');
+                            }
+
+                            cell.onclick = () => this.selectCell(r, c);
+                        }
+
+                        board.appendChild(cell);
+                    }
+                }
+            },
+
+            selectCell(r, c) {
+                this.selected = { r, c };
+                if (window.SoundManager) window.SoundManager.play('click');
+                this.render();
+            },
+
+            input(num) {
+                if (!this.selected) return;
+
+                const { r, c } = this.selected;
+                if (this.grid[r][c] !== 'E') return;
+
+                this.userGrid[r][c] = num;
+                if (window.SoundManager) window.SoundManager.play('move');
+
+                this.render();
+                this.checkWin();
+            },
+
+            checkWin() {
+                // 1. Check if all entries are filled
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (this.grid[r][c] === 'E' && this.userGrid[r][c] === 0) return false;
+                    }
+                }
+
+                // 2. Validate Clues (Right and Down)
+                // Iterate over all clue cells (and borders implicitly via grid structure) is hard.
+                // Easier: Iterate over every cell, if it has a clue, check the group it points to.
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        const cell = this.grid[r][c];
+                        if (typeof cell === 'string' && cell.startsWith('C:')) {
+                            const [down, right] = cell.replace('C:', '').split(',').map(Number);
+
+                            // Check Right
+                            if (right > 0) {
+                                let sum = 0;
+                                let seen = new Set();
+                                for (let k = c + 1; k < this.size; k++) {
+                                    if (this.grid[r][k] !== 'E') break;
+                                    const val = this.userGrid[r][k];
+                                    if (seen.has(val)) return false; // Duplicate in group
+                                    seen.add(val);
+                                    sum += val;
+                                }
+                                if (sum !== right) return false;
+                            }
+
+                            // Check Down
+                            if (down > 0) {
+                                let sum = 0;
+                                let seen = new Set();
+                                for (let k = r + 1; k < this.size; k++) {
+                                    if (this.grid[k][c] !== 'E') break;
+                                    const val = this.userGrid[k][c];
+                                    if (seen.has(val)) return false; // Duplicate in group
+                                    seen.add(val);
+                                    sum += val;
+                                }
+                                if (sum !== down) return false;
+                            }
+                        }
+                        // Also need to check virtual "top/left" border clues if any? 
+                        // The 'C:' cells cover all internal clues. 
+                        // But what about the first row/col if they are just boundary? 
+                        // In the data 'B' is black, 'C:...' is clue. 
+                        // The loop above covers all 'C:' cells which define the constraints.
+                    }
+                }
+
+                this.win();
+                return true;
+            },
+
+            win() {
+                if (window.SoundManager) window.SoundManager.play('win');
+                if (window.confetti) window.confetti.celebrate();
+
+                const modal = document.getElementById('winModal');
+                modal.classList.add('show');
+
+                // Update win button URL
+                const winBtn = document.getElementById('winBtn');
+                winBtn.href = `../index.html?save=kakuro&wins=1&daily=${this.mode === 'daily'}`;
+            }
+        };
+
+        function openTutorial() {
+            document.getElementById('tutorialOverlay').classList.add('show');
+        }
+
+        function closeTutorial() {
+            document.getElementById('tutorialOverlay').classList.remove('show');
+        }
+
+        // First visit tutorial
+        if (!localStorage.getItem('seen_tut_kakuro')) {
+            openTutorial();
+            localStorage.setItem('seen_tut_kakuro', 'true');
+        }
+
+        window.game = game;
+        game.init();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,706 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sudoku - Bulmaca Super App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/random.js"></script>
+    <script src="../js/i18n.js"></script>
+    <style>
+        .sudoku-board {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            background: var(--border);
+            padding: 2px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            width: 335px;
+            margin: 0 auto;
+        }
+
+        .sudoku-cell {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        /* Border styles same as before */
+        .sudoku-cell:not(:nth-child(9n)) {
+            border-right: 1px solid var(--border);
+        }
+
+        .sudoku-cell:not(:nth-last-child(-n+9)) {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sudoku-cell:nth-child(3n) {
+            border-right: 2px solid rgba(16, 185, 129, 0.5) !important;
+        }
+
+        .sudoku-cell:nth-child(9n) {
+            border-right: none !important;
+        }
+
+        .sudoku-cell:nth-child(n+19):nth-child(-n+27),
+        .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid rgba(16, 185, 129, 0.5) !important;
+        }
+
+        .sudoku-cell.selected {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        .sudoku-cell.fixed {
+            color: var(--text-main);
+            font-weight: 800;
+            background: var(--bg-app);
+        }
+
+        .sudoku-cell.error {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+            animation: shake 0.3s;
+        }
+
+        .sudoku-cell.highlight {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-2px);
+            }
+
+            75% {
+                transform: translateX(2px);
+            }
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 25px;
+            width: 100%;
+            max-width: 335px;
+        }
+
+        .numpad-btn {
+            height: 50px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-main);
+            font-size: 1.4rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .numpad-btn:active {
+            transform: translateY(2px);
+        }
+
+        .numpad-btn.erase {
+            color: #ef4444;
+        }
+
+        .game-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            width: 335px;
+            margin: 0 auto 15px;
+        }
+
+        .mistakes-box {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 5px 10px;
+            border-radius: 6px;
+        }
+
+        .timer {
+            font-family: monospace;
+            font-size: 1.4rem;
+            color: var(--sudoku-color, #10b981);
+            letter-spacing: 2px;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .diff-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #aaa;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .diff-btn.active {
+            background: var(--sudoku-color, #10b981);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .diff-btn.hidden {
+            display: none;
+        }
+
+        .mode-badge {
+            background: #f59e0b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 400px) {
+            .sudoku-board {
+                width: min(90vw, 300px);
+            }
+
+            .sudoku-cell {
+                width: 30px;
+                height: 30px;
+                font-size: 1rem;
+            }
+
+            .numpad {
+                max-width: 90vw;
+                gap: 5px;
+            }
+
+            .numpad-btn {
+                height: 44px;
+                font-size: 1.2rem;
+            }
+
+            .game-controls {
+                width: 90vw;
+            }
+
+            .difficulty-selector {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #1e2028;
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid #3b82f6;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white">
+
+    <header class="game-header">
+        <a href="../index.html" class="back-btn">←</a>
+        <div class="game-title-bar">
+            <h1>🔢 Sudoku</h1>
+        </div>
+        <div class="game-actions">
+            <button class="action-btn" onclick="Game.reset()" title="Yeniden Başlat"
+                data-i18n-title="btn_restart">🔄</button>
+            <button class="action-btn" onclick="openTutorial()">❓</button>
+        </div>
+    </header>
+
+    <main class="game-container" style="text-align: center;">
+
+        <div id="dailyBadge" class="mode-badge hidden" data-i18n="label_daily_challenge">GÜNLÜK ZORLU</div>
+
+        <div class="difficulty-selector" id="diffSelector">
+            <button class="diff-btn active" onclick="Game.setDiff('easy', this)" data-i18n="diff_easy">Kolay</button>
+            <button class="diff-btn" onclick="Game.setDiff('medium', this)" data-i18n="diff_medium">Orta</button>
+            <button class="diff-btn" onclick="Game.setDiff('hard', this)" data-i18n="diff_hard">Zor</button>
+        </div>
+
+        <main class="game-container">
+            <!-- Daily Mode Badge -->
+            <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅
+                GÜNLÜK BULMACA</div>
+
+            <div class="mode-selector">
+                <button id="btn-random" class="mode-btn random active" onclick="Game.newGame('random')"
+                    data-i18n="btn_random">🎲
+                    Rastgele</button>
+                <button id="btn-daily" class="mode-btn daily" onclick="Game.newGame('daily')" data-i18n="btn_daily">📅
+                    Günlük</button>
+            </div>
+
+            <div class="game-controls" id="timer">00:00</div>
+            <div class="mistakes-box" id="mistakes" style="display:none;"><span data-i18n="label_mistakes">Hata</span>:
+                0/3</div>
+            </div>
+
+            <div class="sudoku-board" id="board"></div>
+
+            <div class="numpad">
+                <button class="numpad-btn" onclick="Game.input(1)">1</button>
+                <button class="numpad-btn" onclick="Game.input(2)">2</button>
+                <button class="numpad-btn" onclick="Game.input(3)">3</button>
+                <button class="numpad-btn" onclick="Game.input(4)">4</button>
+                <button class="numpad-btn" onclick="Game.input(5)">5</button>
+                <button class="numpad-btn" onclick="Game.input(6)">6</button>
+                <button class="numpad-btn" onclick="Game.input(7)">7</button>
+                <button class="numpad-btn" onclick="Game.input(8)">8</button>
+                <button class="numpad-btn" onclick="Game.input(9)">9</button>
+                <button class="numpad-btn erase" onclick="Game.input(0)">⌫</button>
+            </div>
+
+        </main>
+
+        <!-- Win Overlay -->
+        <div class="overlay" id="winOverlay">
+            <div class="modal">
+                <div class="text-4xl mb-4">🎉</div>
+                <h2 class="text-2xl font-bold mb-2" data-i18n="congrats">Tebrikler!</h2>
+                <p class="text-gray-400 mb-4" id="winTime">Süre: 00:00</p>
+                <button class="btn-primary" id="winHomeBtn" data-i18n="btn_home">Ana
+                    Menü</button>
+                <button class="btn-secondary" onclick="Game.reset()" data-i18n="btn_new_game">Yeni Oyun</button>
+            </div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div class="overlay" id="loseOverlay">
+            <div class="modal" style="border-color: #ef4444;">
+                <div class="text-4xl mb-4">💥</div>
+                <h2 class="text-2xl font-bold mb-2 text-red-500">Oyun Bitti</h2>
+                <p class="text-gray-400 mb-4">Çok fazla hata yaptın.</p>
+                <button class="btn-primary" onclick="window.location.href='../index.html'">Ana Menü</button>
+                <button class="btn-secondary" onclick="Game.reset()">Tekrar Dene</button>
+            </div>
+        </div>
+
+        <script>
+            const Game = {
+                rng: null,
+                board: [],
+                solution: [],
+                initialMask: [], // true if fixed
+                selectedIdx: -1,
+                timer: 0,
+                timerInt: null,
+                difficulty: 'easy',
+                mode: 'classic', // classic, daily, mistakes
+                mistakes: 0,
+                maxMistakes: 3,
+                isActive: true,
+
+                HOLES: { 'easy': 30, 'medium': 40, 'hard': 50 },
+
+                init() {
+                    const params = new URLSearchParams(window.location.search);
+                    const modeParam = params.get('mode');
+
+                    if (modeParam === 'daily') {
+                        this.mode = 'daily';
+                        // this.difficulty = 'hard'; // Moved to newGame
+                        // document.getElementById('dailyBadge').classList.remove('hidden');
+                        // document.getElementById('diffSelector').style.display = 'none';
+                        // this.rng = new SeededRandom(SeededRandom.getDailySeed());
+                    } else {
+                        this.mode = 'classic';
+                        // this.rng = new SeededRandom(Date.now()); // Random seed
+                    }
+
+                    this.newGame(this.mode === 'daily' ? 'daily' : 'classic');
+                },
+
+                // Classic mode: random seed
+                // Daily mode: seeded by date
+
+
+
+                newGame(mode) {
+                    // If mode is provided, switch mode. Else use existing.
+                    if (mode) this.mode = mode;
+
+                    // Update UI Buttons
+                    const btnRandom = document.getElementById('btn-random');
+                    const btnDaily = document.getElementById('btn-daily');
+
+                    if (this.mode === 'daily') {
+                        btnDaily.classList.add('active');
+                        if (btnRandom) btnRandom.classList.remove('active');
+                        document.getElementById('daily-badge').style.display = 'inline-flex';
+                        document.getElementById('diffSelector').style.display = 'none';
+                        document.getElementById('dailyBadge').classList.remove('hidden'); // Old badge, keep or remove? Keep for now
+                        this.difficulty = 'hard';
+
+                        const seed = SeededRandom.getDailySeed();
+                        this.rng = new SeededRandom(seed);
+                        document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                    } else {
+                        if (btnRandom) btnRandom.classList.add('active');
+                        btnDaily.classList.remove('active');
+                        document.getElementById('daily-badge').style.display = 'none';
+                        document.getElementById('diffSelector').style.display = 'flex';
+                        document.getElementById('dailyBadge').classList.add('hidden');
+
+                        this.rng = new SeededRandom(Date.now());
+                    }
+
+                    this.board = Array(81).fill(0);
+                    this.fixed = Array(81).fill(false);
+                    this.history = [];
+                    this.selectedIdx = -1;
+                    clearInterval(this.timerInt);
+                    this.timerInt = setInterval(() => this.tick(), 1000);
+
+                    this.generate();
+                    this.render();
+                    this.updateUI();
+
+                    document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
+                },
+
+                setDiff(d, btn) {
+                    this.difficulty = d;
+                    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.newGame();
+                },
+
+                generate() {
+                    // 1. Init empty
+                    const board = Array(81).fill(0);
+
+                    // 2. Fill diagonal 3x3 (independent) using RNG
+                    for (let i = 0; i < 9; i += 3) this.fillBox(board, i, i);
+
+                    // 3. Solve rest
+                    this.solve(board);
+                    this.solution = [...board];
+
+                    // 4. Dig holes
+                    const holes = this.HOLES[this.difficulty];
+                    let attempts = holes;
+                    // Use RNG for holes too
+                    while (attempts > 0) {
+                        let idx = Math.floor(this.rng.next() * 81);
+                        if (board[idx] !== 0) {
+                            board[idx] = 0;
+                            attempts--;
+                        }
+                    }
+                    this.board = board;
+                    this.initialMask = this.board.map(n => n !== 0);
+                },
+
+                fillBox(board, row, col) {
+                    let num;
+                    for (let i = 0; i < 3; i++) {
+                        for (let j = 0; j < 3; j++) {
+                            do {
+                                num = Math.floor(this.rng.next() * 9) + 1;
+                            } while (!this.isSafeBox(board, row, col, num));
+                            board[(row + i) * 9 + (col + j)] = num;
+                        }
+                    }
+                },
+
+                isSafeBox(board, rowStart, colStart, num) {
+                    for (let i = 0; i < 3; i++) {
+                        for (let j = 0; j < 3; j++) {
+                            if (board[(rowStart + i) * 9 + (colStart + j)] === num) return false;
+                        }
+                    }
+                    return true;
+                },
+
+                solve(board) {
+                    const empty = board.indexOf(0);
+                    if (empty === -1) return true;
+
+                    const row = Math.floor(empty / 9);
+                    const col = empty % 9;
+
+                    // Shuffle 1-9
+                    const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                    // Fisher-Yates with current RNG
+                    for (let i = nums.length - 1; i > 0; i--) {
+                        const j = Math.floor(this.rng.next() * (i + 1));
+                        [nums[i], nums[j]] = [nums[j], nums[i]];
+                    }
+
+                    for (let num of nums) {
+                        if (this.isValid(board, row, col, num)) {
+                            board[empty] = num;
+                            if (this.solve(board)) return true;
+                            board[empty] = 0;
+                        }
+                    }
+                    return false;
+                },
+
+                isValid(board, row, col, num) {
+                    for (let i = 0; i < 9; i++) {
+                        if (board[row * 9 + i] === num) return false;
+                        if (board[i * 9 + col] === num) return false;
+                        const boxRow = 3 * Math.floor(row / 3) + Math.floor(i / 3);
+                        const boxCol = 3 * Math.floor(col / 3) + i % 3;
+                        if (board[boxRow * 9 + boxCol] === num) return false;
+                    }
+                    return true;
+                },
+
+                input(n) {
+                    if (!this.isActive || this.selectedIdx === -1 || this.initialMask[this.selectedIdx]) return;
+
+                    const r = Math.floor(this.selectedIdx / 9);
+                    const c = this.selectedIdx % 9;
+
+                    if (n === 0) {
+                        this.board[this.selectedIdx] = 0;
+                        this.render();
+                        return;
+                    }
+
+                    // RULE-BASED VALIDATION (Permissive Mode)
+                    // Only flag error if it DIRECTLY conflicts with visible board (row/col/box)
+                    if (!this.isValid(this.board, r, c, n)) {
+                        // MISTAKE! (Conflict with existing numbers)
+                        if (window.SoundManager) window.SoundManager.play('error');
+                        const cell = document.querySelectorAll('.sudoku-cell')[this.selectedIdx];
+                        cell.classList.add('error');
+                        cell.textContent = n;
+                        setTimeout(() => {
+                            cell.classList.remove('error');
+                            cell.textContent = '';
+                        }, 500);
+
+                        this.mistakes++;
+                        this.updateUI();
+
+                        if (this.mistakes >= this.maxMistakes) {
+                            this.gameOver();
+                        }
+                    } else {
+                        // ACCEPT MOVE (Even if not in original solution)
+                        if (window.SoundManager) window.SoundManager.play('move');
+                        this.board[this.selectedIdx] = n;
+                        this.render();
+                        this.checkWin();
+                    }
+                },
+
+                checkWin() {
+                    if (this.board.includes(0)) return; // Not full yet
+
+                    // Validate purely based on rules (independent of this.solution)
+                    if (this.checkAllRules()) {
+                        this.isActive = false;
+                        clearInterval(this.timerInt);
+                        if (window.SoundManager) window.SoundManager.play('win');
+                        if (window.confetti) window.confetti.celebrate();
+                        document.getElementById('winTime').textContent = "Süre: " + document.getElementById('timer').textContent;
+
+                        // Build save URL with daily flag
+                        const dailyParam = this.mode === 'daily' ? '&daily=true' : '';
+                        const saveUrl = `../index.html?save=sudoku&wins=1&time=${this.timer}${dailyParam}`;
+                        document.getElementById('winHomeBtn').onclick = () => window.location.href = saveUrl;
+
+                        document.getElementById('winOverlay').classList.add('show');
+                    }
+                },
+
+                checkAllRules() {
+                    // Check Rows
+                    for (let r = 0; r < 9; r++) {
+                        const set = new Set();
+                        for (let c = 0; c < 9; c++) set.add(this.board[r * 9 + c]);
+                        if (set.size !== 9) return false; // Duplicate or 0 detected (though 0 checked active)
+                    }
+                    // Check Cols
+                    for (let c = 0; c < 9; c++) {
+                        const set = new Set();
+                        for (let r = 0; r < 9; r++) set.add(this.board[r * 9 + c]);
+                        if (set.size !== 9) return false;
+                    }
+                    // Check Boxes
+                    for (let br = 0; br < 3; br++) {
+                        for (let bc = 0; bc < 3; bc++) {
+                            const set = new Set();
+                            for (let i = 0; i < 3; i++) {
+                                for (let j = 0; j < 3; j++) {
+                                    set.add(this.board[(br * 3 + i) * 9 + (bc * 3 + j)]);
+                                }
+                            }
+                            if (set.size !== 9) return false;
+                        }
+                    }
+                    return true;
+                },
+
+                gameOver() {
+                    this.isActive = false;
+                    clearInterval(this.timerInt);
+                    document.getElementById('loseOverlay').classList.add('show');
+                },
+
+                reset() {
+                    // If daily, just reload to restart same puzzle
+                    if (this.mode === 'daily') {
+                        window.location.reload();
+                    } else {
+                        this.newGame();
+                    }
+                },
+
+                tick() {
+                    this.timer++;
+                    const m = Math.floor(this.timer / 60).toString().padStart(2, '0');
+                    const s = (this.timer % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').textContent = `${m}:${s}`;
+                },
+
+                updateUI() {
+                    const mistakeEl = document.getElementById('mistakes');
+                    // Always show mistakes for now, or only for Hard/Daily?
+                    // Let's show it always, it's good feedback.
+                    mistakeEl.style.display = 'block';
+                    if (mistakeEl) {
+                        const label = getText ? getText('label_mistakes') : 'Hata';
+                        mistakeEl.innerHTML = `<span data-i18n="label_mistakes">${label}</span>: ${this.mistakes}/${this.maxMistakes}`;
+                    }
+                },
+
+                render() {
+                    const boardEl = document.getElementById('board');
+                    boardEl.innerHTML = '';
+
+                    this.board.forEach((num, i) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'sudoku-cell';
+                        if (num !== 0) cell.textContent = num;
+
+                        if (this.initialMask[i]) cell.classList.add('fixed');
+                        if (this.selectedIdx === i) cell.classList.add('selected');
+
+                        // Highlight same numbers
+                        if (this.selectedIdx !== -1 && this.board[this.selectedIdx] === num && num !== 0) {
+                            cell.classList.add('highlight');
+                        }
+
+                        cell.onclick = () => {
+                            if (this.isActive) {
+                                this.selectedIdx = i;
+                                this.render();
+                            }
+                        };
+                        boardEl.appendChild(cell);
+                    });
+                }
+            };
+
+            window.Game = Game;
+            Game.init();
+        </script>
+        <script src="../js/confetti.js"></script>
+        <!-- TUTORIAL -->
+        <div class="tutorial-overlay" id="tutorialOverlay">
+            <div class="tutorial-modal">
+                <h2 class="tutorial-title" data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+                <ul class="tutorial-steps">
+                    <li data-i18n='tut_sudoku_1'></li>
+                    <li data-i18n='tut_sudoku_2'></li>
+                    <li data-i18n='tut_sudoku_3'></li>
+                </ul>
+                <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+            </div>
+        </div>
+        <script>        function openTutorial() { document.getElementById('tutorialOverlay').classList.add('show'); }
+            function closeTutorial() { document.getElementById('tutorialOverlay').classList.remove('show'); localStorage.setItem('seen_tut_sudoku', 'true'); }
+            if (!localStorage.getItem('seen_tut_sudoku')) setTimeout(openTutorial, 500);</script>
+</body>
+
+</html>

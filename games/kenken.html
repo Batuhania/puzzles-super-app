@@ -1,0 +1,724 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KenKen - Bulmaca Super App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/main.css">
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <script src="../js/theme.js"></script>
+    <style>
+        /* Use main.css variables */
+        body {
+            background: var(--bg-app);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            background: var(--bg-app);
+            z-index: 50;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-card);
+            border-radius: 12px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 1.25rem;
+            border: 1px solid var(--border);
+        }
+
+        .game-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .game-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* KenKen Grid */
+        #board {
+            display: grid;
+            gap: 0;
+            margin: 1.5rem auto;
+            width: 100%;
+            max-width: 350px;
+            aspect-ratio: 1;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid var(--primary);
+        }
+
+        .kenken-cell {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--bg-card);
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid var(--border);
+        }
+
+        .kenken-cell:hover {
+            background: #2d3a4f;
+        }
+
+        .kenken-cell.selected {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .kenken-cell.correct {
+            color: #22c55e;
+        }
+
+        /* Cage borders */
+        .cage-top {
+            border-top: 3px solid var(--primary) !important;
+        }
+
+        .cage-bottom {
+            border-bottom: 3px solid var(--primary) !important;
+        }
+
+        .cage-left {
+            border-left: 3px solid var(--primary) !important;
+        }
+
+        .cage-right {
+            border-right: 3px solid var(--primary) !important;
+        }
+
+        /* Cage label */
+        .cage-label {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #fbbf24;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 1px 3px;
+            border-radius: 3px;
+            line-height: 1;
+        }
+
+        /* Numpad */
+        .numpad {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .numpad-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            color: var(--text-main);
+            font-size: 1.25rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .numpad-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .numpad-btn.clear {
+            background: #7f1d1d;
+            border-color: #991b1b;
+            color: #fca5a5;
+        }
+
+        /* Difficulty selector */
+        .diff-selector {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .diff-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .diff-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Win Modal */
+        .win-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .win-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .win-content {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            max-width: 320px;
+            border: 1px solid var(--border);
+        }
+
+        .win-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .win-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .win-text {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .win-btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            text-decoration: none;
+            margin-bottom: 0.5rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .win-btn.secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        /* Tutorial Modal */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+
+<body class="dark">
+    <header class="game-header">
+        <a href="../index.html" class="back-btn">←</a>
+        <div class="game-title">🔢 KenKen</div>
+        <div class="game-actions">
+            <button class="back-btn" onclick="openTutorial()">❓</button>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="game.newGame('random')"
+                data-i18n="btn_random">🎲 Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="game.newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+        </div>
+
+        <!-- Daily Badge -->
+        <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅 GÜNLÜK
+            BULMACA</div>
+
+        <!-- Difficulty Selector -->
+        <div class="diff-selector">
+            <button class="diff-btn active" onclick="game.setDifficulty('easy', this)">4×4</button>
+            <button class="diff-btn" onclick="game.setDifficulty('medium', this)">5×5</button>
+            <button class="diff-btn" onclick="game.setDifficulty('hard', this)">6×6</button>
+        </div>
+
+        <!-- Game Board -->
+        <div id="board"></div>
+
+        <!-- Numpad -->
+        <div class="numpad" id="numpad"></div>
+    </main>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialOverlay" class="overlay">
+        <div class="win-content">
+            <div class="win-icon">🔢</div>
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <div class="text-left text-sm" style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                <p data-i18n="tut_kenken_1" style="margin-bottom: 0.5rem;">1. Her satır ve sütunda rakamlar
+                    <strong>tekrar etmemeli</strong>.
+                </p>
+                <p data-i18n="tut_kenken_2" style="margin-bottom: 0.5rem;">2. Kalın çerçeveli gruplar (kafesler) var.
+                </p>
+                <p data-i18n="tut_kenken_3" style="margin-bottom: 0.5rem;">3. Kafesteki sayılar, belirtilen işlemle
+                    <strong>hedef sayıya</strong>
+                    ulaşmalı.
+                </p>
+                <p data-i18n="tut_kenken_4" style="margin-bottom: 0.5rem;">4. Örnek: "6×" kafesinde 2 ve 3 olabilir
+                    (2×3=6).</p>
+            </div>
+            <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="winModal" class="win-modal">
+        <div class="win-content">
+            <div class="win-icon">🎉</div>
+            <h2 class="win-title" data-i18n="congrats">Tebrikler!</h2>
+            <p class="win-text">Bulmacayı çözdün!</p>
+            <a id="winBtn" href="../index.html" class="win-btn" data-i18n="btn_home">Ana Menü</a>
+            <button class="win-btn secondary" onclick="game.newGame(game.mode)" data-i18n="btn_new_game">Yeni
+                Oyun</button>
+        </div>
+    </div>
+
+    <script>
+        // Tutorial
+        function openTutorial() { document.getElementById('tutorialOverlay').classList.add('show'); }
+        function closeTutorial() {
+            document.getElementById('tutorialOverlay').classList.remove('show');
+            localStorage.setItem('seen_tut_kenken', 'true');
+        }
+        if (!localStorage.getItem('seen_tut_kenken')) setTimeout(openTutorial, 500);
+
+        // Seeded Random
+        class SeededRandom {
+            constructor(seed) { this.seed = seed; }
+            next() {
+                this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
+                return this.seed / 0x7fffffff;
+            }
+            nextInt(min, max) { return Math.floor(this.next() * (max - min + 1)) + min; }
+            static getDailySeed() {
+                const d = new Date();
+                return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+            }
+        }
+
+        // Predefined Puzzles
+        const PUZZLES = {
+            easy: [
+                {
+                    size: 4,
+                    cages: [
+                        { cells: [[0, 0], [1, 0]], target: 2, op: '÷' },
+                        { cells: [[0, 1], [0, 2]], target: 3, op: '-' },
+                        { cells: [[0, 3]], target: 1, op: '' },
+                        { cells: [[1, 1], [1, 2], [2, 1]], target: 6, op: '+' },
+                        { cells: [[1, 3], [2, 3]], target: 3, op: '-' },
+                        { cells: [[2, 0]], target: 4, op: '' },
+                        { cells: [[2, 2], [3, 2]], target: 2, op: '÷' },
+                        { cells: [[3, 0], [3, 1]], target: 12, op: '×' },
+                        { cells: [[3, 3]], target: 2, op: '' }
+                    ],
+                    solution: [
+                        [2, 4, 1, 3],
+                        [4, 1, 3, 2],
+                        [1, 3, 2, 4],
+                        [3, 2, 4, 1]
+                    ]
+                },
+                {
+                    size: 4,
+                    cages: [
+                        { cells: [[0, 0], [0, 1]], target: 5, op: '+' },
+                        { cells: [[0, 2], [0, 3]], target: 2, op: '-' },
+                        { cells: [[1, 0], [2, 0]], target: 8, op: '×' },
+                        { cells: [[1, 1]], target: 3, op: '' },
+                        { cells: [[1, 2], [1, 3]], target: 7, op: '+' },
+                        { cells: [[2, 1], [2, 2]], target: 1, op: '-' },
+                        { cells: [[2, 3], [3, 3]], target: 6, op: '+' },
+                        { cells: [[3, 0], [3, 1], [3, 2]], target: 9, op: '+' }
+                    ],
+                    solution: [
+                        [1, 4, 3, 1],
+                        [4, 3, 2, 1],
+                        [2, 1, 4, 3],
+                        [3, 2, 1, 4]
+                    ]
+                },
+                {
+                    size: 4,
+                    cages: [
+                        { cells: [[0, 0], [1, 0]], target: 3, op: '+' },
+                        { cells: [[0, 1], [0, 2], [0, 3]], target: 24, op: '×' },
+                        { cells: [[1, 1], [1, 2]], target: 2, op: '÷' },
+                        { cells: [[1, 3], [2, 3]], target: 1, op: '-' },
+                        { cells: [[2, 0], [3, 0]], target: 2, op: '-' },
+                        { cells: [[2, 1], [2, 2]], target: 5, op: '+' },
+                        { cells: [[3, 1], [3, 2], [3, 3]], target: 6, op: '+' }
+                    ],
+                    solution: [
+                        [1, 2, 3, 4],
+                        [2, 4, 1, 3],
+                        [4, 3, 2, 1],
+                        [3, 1, 4, 2]
+                    ]
+                }
+            ],
+            medium: [
+                {
+                    size: 5,
+                    cages: [
+                        { cells: [[0, 0], [0, 1]], target: 4, op: '-' },
+                        { cells: [[0, 2], [1, 2]], target: 2, op: '÷' },
+                        { cells: [[0, 3], [0, 4]], target: 9, op: '+' },
+                        { cells: [[1, 0], [2, 0]], target: 6, op: '×' },
+                        { cells: [[1, 1]], target: 4, op: '' },
+                        { cells: [[1, 3], [1, 4], [2, 4]], target: 8, op: '+' },
+                        { cells: [[2, 1], [2, 2], [2, 3]], target: 15, op: '×' },
+                        { cells: [[3, 0], [3, 1]], target: 3, op: '-' },
+                        { cells: [[3, 2], [4, 2]], target: 4, op: '+' },
+                        { cells: [[3, 3], [3, 4]], target: 2, op: '-' },
+                        { cells: [[4, 0], [4, 1]], target: 7, op: '+' },
+                        { cells: [[4, 3], [4, 4]], target: 20, op: '×' }
+                    ],
+                    solution: [
+                        [5, 1, 2, 4, 3],
+                        [2, 4, 1, 3, 5],
+                        [3, 5, 3, 1, 2],
+                        [4, 2, 5, 3, 1],
+                        [1, 3, 4, 5, 4]
+                    ]
+                },
+                {
+                    size: 5,
+                    cages: [
+                        { cells: [[0, 0], [1, 0]], target: 3, op: '+' },
+                        { cells: [[0, 1], [0, 2]], target: 8, op: '+' },
+                        { cells: [[0, 3], [0, 4], [1, 4]], target: 10, op: '+' },
+                        { cells: [[1, 1], [1, 2], [1, 3]], target: 30, op: '×' },
+                        { cells: [[2, 0], [2, 1]], target: 2, op: '-' },
+                        { cells: [[2, 2]], target: 1, op: '' },
+                        { cells: [[2, 3], [2, 4]], target: 3, op: '÷' },
+                        { cells: [[3, 0], [4, 0]], target: 12, op: '×' },
+                        { cells: [[3, 1], [3, 2]], target: 7, op: '+' },
+                        { cells: [[3, 3], [4, 3]], target: 4, op: '-' },
+                        { cells: [[3, 4], [4, 4]], target: 6, op: '+' },
+                        { cells: [[4, 1], [4, 2]], target: 4, op: '×' }
+                    ],
+                    solution: [
+                        [1, 3, 5, 2, 4],
+                        [2, 5, 3, 1, 4],
+                        [3, 5, 1, 4, 2],
+                        [4, 2, 5, 1, 3],
+                        [5, 1, 4, 3, 2]
+                    ]
+                }
+            ],
+            hard: [
+                {
+                    size: 6,
+                    cages: [
+                        { cells: [[0, 0], [0, 1]], target: 11, op: '+' },
+                        { cells: [[0, 2], [1, 2]], target: 2, op: '÷' },
+                        { cells: [[0, 3], [0, 4]], target: 3, op: '-' },
+                        { cells: [[0, 5], [1, 5]], target: 5, op: '-' },
+                        { cells: [[1, 0], [2, 0]], target: 3, op: '-' },
+                        { cells: [[1, 1]], target: 3, op: '' },
+                        { cells: [[1, 3], [1, 4]], target: 3, op: '÷' },
+                        { cells: [[2, 1], [2, 2]], target: 20, op: '×' },
+                        { cells: [[2, 3], [3, 3]], target: 6, op: '×' },
+                        { cells: [[2, 4], [2, 5]], target: 9, op: '+' },
+                        { cells: [[3, 0], [3, 1]], target: 7, op: '+' },
+                        { cells: [[3, 2], [4, 2]], target: 11, op: '+' },
+                        { cells: [[3, 4], [3, 5], [4, 5]], target: 12, op: '+' },
+                        { cells: [[4, 0], [5, 0]], target: 3, op: '+' },
+                        { cells: [[4, 1]], target: 6, op: '' },
+                        { cells: [[4, 3], [4, 4]], target: 2, op: '-' },
+                        { cells: [[5, 1], [5, 2]], target: 30, op: '×' },
+                        { cells: [[5, 3], [5, 4], [5, 5]], target: 11, op: '+' }
+                    ],
+                    solution: [
+                        [5, 6, 4, 1, 2, 3],
+                        [2, 3, 1, 6, 4, 5],
+                        [1, 4, 5, 2, 3, 6],
+                        [3, 5, 6, 4, 1, 2],
+                        [6, 1, 2, 5, 3, 4],
+                        [4, 2, 3, 3, 6, 1]
+                    ]
+                }
+            ]
+        };
+
+        // Game Object
+        const game = {
+            size: 4,
+            difficulty: 'easy',
+            mode: 'random',
+            selected: null,
+            userGrid: [],
+            puzzle: null,
+            rng: null,
+
+            init() {
+                this.newGame('random');
+            },
+
+            setDifficulty(diff, btn) {
+                this.difficulty = diff;
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.newGame(this.mode);
+            },
+
+            newGame(mode) {
+                this.mode = mode;
+                this.selected = null;
+
+                // Update mode buttons
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                if (mode === 'daily') {
+                    document.getElementById('btn-daily').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'inline-flex';
+                    const seed = SeededRandom.getDailySeed();
+                    this.rng = new SeededRandom(seed);
+                    document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                } else {
+                    document.getElementById('btn-random').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'none';
+                    this.rng = new SeededRandom(Date.now());
+                }
+
+                // Pick puzzle
+                const puzzles = PUZZLES[this.difficulty];
+                const puzzleIndex = this.rng.nextInt(0, puzzles.length - 1);
+                this.puzzle = puzzles[puzzleIndex];
+                this.size = this.puzzle.size;
+                this.userGrid = Array(this.size).fill(0).map(() => Array(this.size).fill(0));
+
+                this.render();
+                this.renderNumpad();
+                document.getElementById('winModal').classList.remove('show');
+            },
+
+            render() {
+                const board = document.getElementById('board');
+                board.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
+                board.innerHTML = '';
+
+                // Create cell-to-cage mapping
+                const cageMap = {};
+                this.puzzle.cages.forEach((cage, cageIdx) => {
+                    cage.cells.forEach(([r, c]) => {
+                        cageMap[`${r},${c}`] = { cage, cageIdx };
+                    });
+                });
+
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'kenken-cell';
+
+                        const val = this.userGrid[r][c];
+                        cell.textContent = val > 0 ? val : '';
+
+                        // Cage borders
+                        const info = cageMap[`${r},${c}`];
+                        if (info) {
+                            const { cage, cageIdx } = info;
+                            const isInCage = (rr, cc) => cage.cells.some(([cr, cc2]) => cr === rr && cc2 === cc);
+
+                            if (!isInCage(r - 1, c)) cell.classList.add('cage-top');
+                            if (!isInCage(r + 1, c)) cell.classList.add('cage-bottom');
+                            if (!isInCage(r, c - 1)) cell.classList.add('cage-left');
+                            if (!isInCage(r, c + 1)) cell.classList.add('cage-right');
+
+                            // First cell in cage gets label
+                            if (cage.cells[0][0] === r && cage.cells[0][1] === c) {
+                                const label = document.createElement('span');
+                                label.className = 'cage-label';
+                                label.textContent = `${cage.target}${cage.op}`;
+                                cell.appendChild(label);
+                            }
+                        }
+
+                        // Selection
+                        if (this.selected && this.selected.r === r && this.selected.c === c) {
+                            cell.classList.add('selected');
+                        }
+
+                        cell.onclick = () => this.selectCell(r, c);
+                        board.appendChild(cell);
+                    }
+                }
+            },
+
+            renderNumpad() {
+                const numpad = document.getElementById('numpad');
+                numpad.innerHTML = '';
+
+                for (let i = 1; i <= this.size; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'numpad-btn';
+                    btn.textContent = i;
+                    btn.onclick = () => this.input(i);
+                    numpad.appendChild(btn);
+                }
+
+                // Clear button
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'numpad-btn clear';
+                clearBtn.innerHTML = '✕';
+                clearBtn.onclick = () => this.input(0);
+                numpad.appendChild(clearBtn);
+            },
+
+            selectCell(r, c) {
+                this.selected = { r, c };
+                this.render();
+                if (window.SoundManager) window.SoundManager.play('click');
+            },
+
+            input(num) {
+                if (!this.selected) return;
+                const { r, c } = this.selected;
+                this.userGrid[r][c] = num;
+                if (window.SoundManager) window.SoundManager.play('move');
+                this.render();
+                this.checkWin();
+            },
+
+            checkWin() {
+                // 1. Check if board is fully filled
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (this.userGrid[r][c] === 0) return false;
+                    }
+                }
+
+                // 2. Check Rows and Columns (Latin Square)
+                for (let i = 0; i < this.size; i++) {
+                    const rowSet = new Set();
+                    const colSet = new Set();
+                    for (let j = 0; j < this.size; j++) {
+                        rowSet.add(this.userGrid[i][j]);
+                        colSet.add(this.userGrid[j][i]);
+                    }
+                    if (rowSet.size !== this.size || colSet.size !== this.size) return false;
+                }
+
+                // 3. Check Cages
+                for (let cage of this.puzzle.cages) {
+                    const values = cage.cells.map(([r, c]) => this.userGrid[r][c]);
+                    if (!this.checkCage(values, cage.target, cage.op)) return false;
+                }
+
+                this.win();
+                return true;
+            },
+
+            checkCage(values, target, op) {
+                if (op === '+') {
+                    return values.reduce((a, b) => a + b, 0) === target;
+                } else if (op === '*') { // Fixed visualization is '×' but op is '×' or '*' depending on puzzle? standardizing to check both or puzzle data
+                    // Actually data uses '×' but let's be safe. In code above op is shown as text.
+                    // The puzzle data uses '×' in the file I read.
+                    return values.reduce((a, b) => a * b, 1) === target;
+                } else if (op === '×') {
+                    return values.reduce((a, b) => a * b, 1) === target;
+                } else if (op === '-') {
+                    if (values.length !== 2) return false;
+                    return Math.abs(values[0] - values[1]) === target;
+                } else if (op === '÷') {
+                    if (values.length !== 2) return false;
+                    const max = Math.max(values[0], values[1]);
+                    const min = Math.min(values[0], values[1]);
+                    return max / min === target;
+                } else {
+                    // op === '' (single cell)
+                    return values[0] === target;
+                }
+            },
+
+            win() {
+                if (window.SoundManager) window.SoundManager.play('win');
+                if (window.confetti) window.confetti.celebrate();
+
+                document.getElementById('winModal').classList.add('show');
+
+                // Update win button URL
+                const winBtn = document.getElementById('winBtn');
+                winBtn.href = `../index.html?save=kenken&wins=1&daily=${this.mode === 'daily'}`;
+            }
+        };
+
+        window.game = game;
+        game.init();
+    </script>
+    <script src="../js/confetti.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,454 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Renk Taşkını - Bulmaca Super App</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+
+    <!-- Scripts -->
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <script src="../js/random.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        primary: '#3b82f6',
+                        accent: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(14, 1fr);
+            gap: 2px;
+            max-width: 350px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            background: #1e293b;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            width: 100%;
+            height: 100%;
+            border-radius: 2px;
+            transition: background-color 0.3s;
+        }
+
+        .c-0 {
+            background: #ef4444;
+        }
+
+        /* Red */
+        .c-1 {
+            background: #3b82f6;
+        }
+
+        /* Blue */
+        .c-2 {
+            background: #10b981;
+        }
+
+        /* Green */
+        .c-3 {
+            background: #f59e0b;
+        }
+
+        /* Orange */
+        .c-4 {
+            background: #a855f7;
+        }
+
+        /* Purple */
+        .c-5 {
+            background: #ec4899;
+        }
+
+        /* Pink */
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 300px;
+            margin: 20px auto 0;
+        }
+
+        .ctrl-btn {
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ctrl-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 400px) {
+            .board {
+                max-width: 90vw;
+            }
+
+            .controls {
+                max-width: 90vw;
+                gap: 6px;
+                margin-top: 12px;
+            }
+
+            .ctrl-btn {
+                height: 44px;
+            }
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .dark .modal {
+            background: #1e293b;
+            color: white;
+            border: 1px solid #334155;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gray-50 dark:bg-darker text-gray-800 dark:text-gray-100 min-h-screen flex flex-col font-['Inter'] transition-colors duration-300 select-none">
+
+    <!-- Header -->
+    <header
+        class="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-white/80 dark:bg-dark/80 backdrop-blur-sm sticky top-0 z-10">
+        <a href="../index.html" class="flex items-center gap-2 group">
+            <div
+                class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                ←</div>
+            <h1 class="font-bold text-lg tracking-tight" data-i18n="game_floodit">Renk Taşkını</h1>
+        </a>
+        <div class="flex items-center gap-2">
+            <button onclick="FloodIt.showTutorial()"
+                class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 transition">?</button>
+            <div class="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-lg font-mono font-bold text-primary">
+                <span id="moves">0</span>/<span id="maxMoves">25</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Game Area -->
+    <main class="flex-1 flex flex-col p-4 items-center justify-center">
+
+        <div class="game-container">
+            <!-- Daily Mode Badge -->
+            <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅
+                GÜNLÜK BULMACA</div>
+
+            <div class="mode-selector">
+                <button id="btn-random" class="mode-btn random active" onclick="FloodIt.newGame('random')"
+                    data-i18n="btn_random">🎲
+                    Rastgele</button>
+                <button id="btn-daily" class="mode-btn daily" onclick="FloodIt.newGame('daily')"
+                    data-i18n="btn_daily">📅 Günlük</button>
+            </div>
+
+            <div id="board" class="game-board w-full shadow-2xl shadow-blue-500/10">
+                <!-- Cells generated by JS -->
+            </div>
+
+            <div class="controls w-full">
+                <div class="ctrl-btn c-0" onclick="FloodIt.fill(0)"></div>
+                <div class="ctrl-btn c-1" onclick="FloodIt.fill(1)"></div>
+                <div class="ctrl-btn c-2" onclick="FloodIt.fill(2)"></div>
+                <div class="ctrl-btn c-3" onclick="FloodIt.fill(3)"></div>
+                <div class="ctrl-btn c-4" onclick="FloodIt.fill(4)"></div>
+                <div class="ctrl-btn c-5" onclick="FloodIt.fill(5)"></div>
+            </div>
+        </div>
+
+
+    </main>
+
+    <!-- Tutorial Overlay -->
+    <div id="tutorialOverlay" class="overlay">
+        <div class="modal">
+            <div class="text-4xl mb-4">🎨</div>
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <div class="text-left text-sm text-gray-500 dark:text-gray-400 space-y-3 mb-6">
+                <p data-i18n="tut_floodit_1">1. Sol üst köşeden başlarsın.</p>
+                <p data-i18n="tut_floodit_2">2. Aşağıdaki renk butonlarına basarak alanını genişlet.</p>
+                <p data-i18n="tut_floodit_3">3. Amacın tüm tahtayı <strong class="text-primary">tek bir renge</strong>
+                    boyamak.</p>
+                <p data-i18n="tut_floodit_4">4. <strong>25 hamle</strong> hakkın var. İyi düşün!</p>
+            </div>
+            <button onclick="document.getElementById('tutorialOverlay').classList.remove('show')"
+                class="w-full py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-bold transition"
+                data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <!-- Win/Lose Overlay -->
+    <div id="endOverlay" class="overlay">
+        <div class="modal">
+            <div id="endIcon" class="text-6xl mb-4">🎉</div>
+            <h2 id="endTitle" class="text-2xl font-bold mb-2" data-i18n="congrats">Tebrikler!</h2>
+            <p id="endDesc" class="text-gray-500 dark:text-gray-400 mb-6">Tüm tahtayı boyadın.</p>
+
+            <button id="homeBtn"
+                class="w-full py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-bold transition mb-3"
+                data-i18n="btn_home">
+                Ana Menü
+            </button>
+            <button onclick="FloodIt.reset()"
+                class="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-bold transition text-gray-600 dark:text-gray-300"
+                data-i18n="btn_play_again">
+                Tekrar Oyna
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/confetti.js"></script>
+    <script>
+        const FloodIt = {
+            size: 14,
+            grid: [], // 2D array of color indices (0-5)
+            colors: 6,
+            moves: 0,
+            maxMoves: 25,
+            mode: 'random',
+            active: true,
+            rng: null, // Will be initialized in newGame
+
+            init() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const modeParam = urlParams.get('mode');
+
+                // Show tutorial on first visit? Maybe later.
+                // For now, only new game logic
+                this.newGame(modeParam === 'daily' ? 'daily' : 'random');
+            },
+
+            showTutorial() {
+                document.getElementById('tutorialOverlay').classList.add('show');
+            },
+
+            newGame(mode) {
+                this.mode = mode;
+                this.moves = 0;
+                this.active = true;
+
+                // Update UI Buttons
+                document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+                if (mode === 'daily') {
+                    document.getElementById('btn-daily').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'inline-flex';
+                    const seed = SeededRandom.getDailySeed();
+                    this.rng = new SeededRandom(seed);
+                    document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                } else {
+                    document.getElementById('btn-random').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'none';
+                    this.rng = new SeededRandom(Date.now());
+                }
+
+                // Generate Grid
+                this.grid = [];
+                for (let y = 0; y < this.size; y++) {
+                    const row = [];
+                    for (let x = 0; x < this.size; x++) {
+                        // Use this.rng.nextInt if available, else standard random
+                        if (this.rng && this.rng.nextInt) {
+                            row.push(this.rng.nextInt(0, this.colors - 1));
+                        } else {
+                            // Fallback if nextInt not defined or rng is simple function
+                            const r = this.rng ? this.rng() : Math.random();
+                            row.push(Math.floor(r * this.colors));
+                        }
+                    }
+                    this.grid.push(row);
+                }
+
+
+
+                this.updateUI();
+                this.render();
+                document.getElementById('endOverlay').classList.remove('show');
+            },
+
+            reset() { this.newGame(this.mode); },
+
+            fill(newColor) {
+                if (!this.active) return;
+
+                const oldColor = this.grid[0][0];
+                if (oldColor === newColor) return; // No move
+
+                this.moves++;
+                if (window.SoundManager) window.SoundManager.play('click');
+
+                // Flood Fill Algorithm
+                const visited = new Set();
+                const stack = [[0, 0]];
+
+                while (stack.length > 0) {
+                    const [x, y] = stack.pop();
+                    const key = `${x},${y}`;
+
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+
+                    if (this.grid[y][x] === oldColor) {
+                        this.grid[y][x] = newColor;
+
+                        // Check neighbors
+                        const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+                        for (const [dx, dy] of dirs) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < this.size && ny >= 0 && ny < this.size) {
+                                stack.push([nx, ny]);
+                            }
+                        }
+                    }
+                }
+
+                this.updateUI();
+                this.render();
+                this.checkWin();
+            },
+
+            render() {
+                const board = document.getElementById('board');
+                // Optimization: Don't rebuild DOM every time unless needed.
+                // But for 14x14 (196 divs), it's fast enough to rebuild.
+
+                if (board.childElementCount === 0) {
+                    // Initial Build
+                    board.innerHTML = '';
+                    for (let y = 0; y < this.size; y++) {
+                        for (let x = 0; x < this.size; x++) {
+                            const d = document.createElement('div');
+                            d.className = `cell c-${this.grid[y][x]}`;
+                            d.id = `cell-${x}-${y}`;
+                            board.appendChild(d);
+                        }
+                    }
+                } else {
+                    // Update classes only
+                    for (let y = 0; y < this.size; y++) {
+                        for (let x = 0; x < this.size; x++) {
+                            const d = document.getElementById(`cell-${x}-${y}`);
+                            d.className = `cell c-${this.grid[y][x]}`;
+                        }
+                    }
+                }
+            },
+
+            updateUI() {
+                document.getElementById('moves').textContent = this.moves;
+                if (this.moves > this.maxMoves) {
+                    document.getElementById('moves').classList.add('text-red-500');
+                } else {
+                    document.getElementById('moves').classList.remove('text-red-500');
+                }
+            },
+
+            checkWin() {
+                const firstColor = this.grid[0][0];
+                const allSame = this.grid.every(row => row.every(c => c === firstColor));
+
+                if (allSame) {
+                    if (this.moves <= this.maxMoves) {
+                        this.gameOver(true);
+                    } else {
+                        this.gameOver(true);
+                    }
+                } else if (this.moves >= this.maxMoves) {
+                    this.gameOver(false);
+                }
+            },
+
+            gameOver(filled) {
+                this.active = false;
+                const overlay = document.getElementById('endOverlay');
+                const title = document.getElementById('endTitle');
+                const desc = document.getElementById('endDesc');
+                const icon = document.getElementById('endIcon');
+                const homeBtn = document.getElementById('homeBtn');
+
+                if (filled && this.moves <= this.maxMoves) {
+                    // WIN
+                    if (window.SoundManager) window.SoundManager.play('win');
+                    if (window.confetti) window.confetti.celebrate();
+                    title.textContent = "TEBRİKLER!";
+                    icon.textContent = "🎉";
+                    title.className = "text-2xl font-bold mb-2 text-green-500";
+                    desc.textContent = `${this.moves}/${this.maxMoves} ${getText('completed_in')}`;
+                    // Build save URL with daily flag
+                    const saveUrl = `../index.html?save=floodit&wins=1&time=${this.moves}&daily=${this.mode === 'daily'}`;
+                    homeBtn.onclick = () => window.location.href = saveUrl;
+                } else {
+                    // LOSE
+                    if (window.SoundManager) window.SoundManager.play('error');
+                    title.textContent = "MAALESEF";
+                    icon.textContent = "🥀";
+                    title.className = "text-2xl font-bold mb-2 text-red-500";
+                    desc.textContent = getText('moves_exceeded');
+                    // No win param for losing
+                    homeBtn.onclick = () => window.location.href = '../index.html';
+                }
+                overlay.classList.add('show');
+            }
+        };
+
+        FloodIt.init();
+    </script>
+</body>
+
+</html>
