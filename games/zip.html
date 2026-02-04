@@ -1,0 +1,586 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Zip - Bulmaca Super App</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { gray: { 900: '#1a1b26' } } } }
+        }
+    </script>
+    <!-- INLINE STATS MANAGER -->
+    <script>
+        window.StatsManager = {
+            KEY: 'bulmaca_super_app_stats_v1',
+            load() { try { return JSON.parse(localStorage.getItem(this.KEY)) || {}; } catch (e) { return {}; } },
+            save(data) { try { localStorage.setItem(this.KEY, JSON.stringify(data)); } catch (e) { } },
+            recordWin(gameId, timeInSeconds) {
+                const stats = this.load();
+                if (!stats[gameId]) stats[gameId] = { played: 0, solved: 0, bestTime: null };
+                const entry = stats[gameId];
+                entry.solved++; entry.played++;
+                if (timeInSeconds && (entry.bestTime === null || timeInSeconds < entry.bestTime)) entry.bestTime = timeInSeconds;
+                this.save(stats);
+            }
+        };
+    </script>
+
+    <style>
+        html,
+        body {
+            overflow-y: auto !important;
+            height: auto !important;
+            min-height: 100%;
+        }
+
+        body {
+            background-color: var(--bg-app);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            /* Scroll restored */
+            transition: background-color 0.3s, color 0.3s;
+
+            /* Logic for Zip Colors */
+            --zip-dot: rgba(0, 0, 0, 0.1);
+            /* Much fainter dot for less noise */
+            --zip-num: #1e3a8a;
+            /* Deep Blue-900 for high contrast and premium look */
+        }
+
+        html.dark body {
+            /* ORIGINAL Dark Mode Colors */
+            --zip-dot: rgba(255, 255, 255, 0.3);
+            --zip-num: #93c5fd;
+            /* Blue-300 */
+        }
+
+        /* Fixed Grid Container */
+        #grid {
+            display: flex;
+            flex-wrap: wrap;
+            width: 276px;
+            /* 50x5 + 4x5 + 4 + 2(border) */
+            gap: 4px;
+            padding: 4px;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            margin: 0 auto 2rem auto;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
+            /* Prevent scroll ONLY within the grid for gameplay */
+            touch-action: none;
+        }
+
+        .zip-cell-new {
+            width: 50px;
+            height: 50px;
+            background-color: var(--bg-app);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            box-sizing: border-box;
+            border: 2px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .zip-cell-new.active {
+            background-color: var(--primary);
+            border-color: var(--primary-glow);
+            color: white;
+        }
+
+        .connector {
+            position: absolute;
+            background-color: #3b82f6;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .game-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        #new-puzzle,
+        #reset {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #new-puzzle:hover,
+        #reset:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <header class="game-header p-4 flex justify-between items-center border-b">
+        <a href="../index.html" class="text-2xl no-underline">←</a>
+        <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">🔗 Zip
+        </h1>
+        <div class="game-actions"><button class="action-btn" onclick="openTutorial()">❓</button></div>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center justify-center p-4">
+
+        <!-- Visible Error Log -->
+        <div id="error-box"
+            class="hidden w-full max-w-sm bg-red-900/80 border border-red-500 text-white text-xs p-2 mb-4 rounded font-mono whitespace-pre-wrap">
+        </div>
+
+        <!-- Stats -->
+        <div class="mb-6 flex gap-10 text-sm font-mono">
+            <div class="flex flex-col items-center">
+                <span class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="label_cell">Hücre</span>
+                <div class="text-xl font-bold"><span id="cells-val">0</span><span
+                        class="text-gray-500 text-sm">/25</span></div>
+            </div>
+            <div class="flex flex-col items-center">
+                <span class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="label_time">Süre</span>
+                <div class="text-xl font-bold" id="time-val">00:00</div>
+            </div>
+        </div>
+
+        <!-- Grid -->
+        <div id="grid">
+            <!-- Loading Fallback -->
+            <div class="absolute inset-0 flex items-center justify-center text-blue-400">Yükleniyor...</div>
+        </div>
+
+        <!-- Controls -->
+        <!-- Controls -->
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="newGame('random')" data-i18n="btn_random">🎲
+                Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+            <button id="reset" class="mode-btn" style="background: rgba(255,255,255,0.1); color:#ccc;"
+                data-i18n="btn_reset">Sıfırla</button>
+        </div>
+
+        <!-- Daily Badge -->
+        <div id="daily-badge"
+            class="mb-4 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-500 border border-amber-500/50 hidden"
+            data-i18n="daily_puzzle_badge">
+            📅 GÜNLÜK BULMACA</div>
+    </main>
+
+    <!-- Win Overlay -->
+    <div id="win-overlay" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center hidden z-[100]">
+        <h2 class="text-4xl font-bold text-emerald-400 mb-4" data-i18n="win_title">Tebrikler! 🎉</h2>
+        <p class="text-gray-300 mb-8 text-lg" data-i18n="win_message">Bölümü tamamladın.</p>
+        <button id="overlay-new"
+            class="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl text-lg hover:bg-blue-500 shadow-xl"
+            data-i18n="btn_next">Sonraki
+            Bölüm 👉</button>
+    </div>
+
+    <script>
+        (function () {
+            const logError = (msg) => {
+                console.error(msg);
+                const box = document.getElementById('error-box');
+                if (box) { box.classList.remove('hidden'); box.textContent = msg; }
+            };
+            window.onerror = (msg) => logError(msg);
+
+            // Expose newGame globally
+            window.newGame = newGame;
+
+            const TOTAL = 25;
+            const state = { path: [], numbers: [], mode: 'random' };
+            let timer = null, sec = 0, drawing = false;
+
+            const ui = {
+                grid: document.getElementById('grid'),
+                cells: document.getElementById('cells-val'),
+                time: document.getElementById('time-val'),
+                win: document.getElementById('win-overlay')
+            };
+
+            // --- GENERATOR ---
+            function generate() {
+                try {
+                    for (let i = 0; i < 50; i++) {
+                        const path = createPath();
+                        if (path) return applyClues(path);
+                    }
+                    throw new Error("Timeout");
+                } catch (e) {
+                    console.warn("Using Fallback");
+                    // Valid Snake Path Fallback (Rows: L->R, R->L, etc.)
+                    // 0-4, 9-5, 10-14, 19-15, 20-24
+                    return {
+                        numbers: [
+                            { index: 0, value: 1 }, { index: 4, value: 5 },
+                            { index: 9, value: 6 }, { index: 5, value: 10 }, // Note order for snake
+                            { index: 10, value: 11 }, { index: 14, value: 15 },
+                            { index: 19, value: 16 }, { index: 15, value: 20 },
+                            { index: 20, value: 21 }, { index: 24, value: 25 }
+                        ].sort((a, b) => a.value - b.value)
+                    };
+                }
+            }
+
+            function createPath() {
+                const p = [], v = new Set();
+                const getN = (i) => {
+                    const r = Math.floor(i / 5), c = i % 5; const n = [];
+                    if (r > 0) n.push(i - 5); if (r < 4) n.push(i + 5); if (c > 0) n.push(i - 1); if (c < 4) n.push(i + 1);
+                    for (let k = n.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1));[n[k], n[j]] = [n[j], n[k]]; }
+                    return n;
+                };
+                const solve = (c) => {
+                    p.push(c); v.add(c);
+                    if (p.length === TOTAL) return true;
+                    const nexts = getN(c).filter(n => !v.has(n))
+                        .sort((a, b) => getN(a).filter(x => !v.has(x)).length - getN(b).filter(x => !v.has(x)).length);
+                    for (const n of nexts) if (solve(n)) return true;
+                    p.pop(); v.delete(c); return false;
+                };
+                return solve(Math.floor(Math.random() * 25)) ? p : null;
+            }
+
+            function applyClues(path) {
+                // First (1) and Last (25)
+                const idxs = new Set([0, 24]);
+                // Add random intermediates
+                while (idxs.size < 8) idxs.add(Math.floor(Math.random() * 25));
+                const sorted = Array.from(idxs).sort((a, b) => a - b);
+                return { numbers: sorted.map((pi, i) => ({ index: path[pi], value: i + 1 })) };
+            }
+
+            // --- GAME ---
+            function newGame(mode = 'random') {
+                state.mode = mode;
+                let data;
+
+                // Update Buttons
+                const btnRandom = document.getElementById('btn-random');
+                const btnDaily = document.getElementById('btn-daily');
+                const badge = document.getElementById('daily-badge');
+
+                // Reset styles (Tailwind specific for Zip)
+                if (mode === 'daily') {
+                    btnDaily.classList.add('active');
+                    btnRandom.classList.remove('active');
+                    badge.classList.remove('hidden');
+
+                    const today = new Date();
+                    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+                    badge.textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+
+                    // Use seeded random for daily
+                    const seededRandom = mulberry32(seed);
+                    data = generateSeeded(seededRandom);
+                } else {
+                    btnRandom.classList.add('active');
+                    btnDaily.classList.remove('active');
+                    badge.classList.add('hidden');
+
+                    data = generate();
+                }
+
+                state.numbers = data.numbers;
+                reset();
+            }
+
+            // Simple seeded random function
+            function mulberry32(a) {
+                return function () {
+                    let t = a += 0x6D2B79F5;
+                    t = Math.imul(t ^ t >>> 15, t | 1);
+                    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+                }
+            }
+
+            function generateSeeded(rng) {
+                const randInt = (min, max) => Math.floor(rng() * (max - min + 1)) + min;
+                for (let i = 0; i < 50; i++) {
+                    const path = createPathSeeded(rng, randInt);
+                    if (path) return applyCluesSeeded(path, randInt);
+                }
+                // Fallback
+                return {
+                    numbers: [
+                        { index: 0, value: 1 }, { index: 4, value: 5 },
+                        { index: 9, value: 6 }, { index: 5, value: 10 },
+                        { index: 10, value: 11 }, { index: 14, value: 15 },
+                        { index: 19, value: 16 }, { index: 15, value: 20 },
+                        { index: 20, value: 21 }, { index: 24, value: 25 }
+                    ].sort((a, b) => a.value - b.value)
+                };
+            }
+
+            function createPathSeeded(rng, randInt) {
+                const p = [], v = new Set();
+                const getN = (i) => {
+                    const r = Math.floor(i / 5), c = i % 5; const n = [];
+                    if (r > 0) n.push(i - 5); if (r < 4) n.push(i + 5); if (c > 0) n.push(i - 1); if (c < 4) n.push(i + 1);
+                    for (let k = n.length - 1; k > 0; k--) { const j = randInt(0, k);[n[k], n[j]] = [n[j], n[k]]; }
+                    return n;
+                };
+                const solve = (c) => {
+                    p.push(c); v.add(c);
+                    if (p.length === TOTAL) return true;
+                    const nexts = getN(c).filter(n => !v.has(n))
+                        .sort((a, b) => getN(a).filter(x => !v.has(x)).length - getN(b).filter(x => !v.has(x)).length);
+                    for (const n of nexts) if (solve(n)) return true;
+                    p.pop(); v.delete(c); return false;
+                };
+                return solve(randInt(0, 24)) ? p : null;
+            }
+
+            function applyCluesSeeded(path, randInt) {
+                const idxs = new Set([0, 24]);
+                while (idxs.size < 8) idxs.add(randInt(0, 24));
+                const sorted = Array.from(idxs).sort((a, b) => a - b);
+                return { numbers: sorted.map((pi, i) => ({ index: path[pi], value: i + 1 })) };
+            }
+
+            function reset() {
+                state.path = [];
+                sec = 0;
+                if (timer) clearInterval(timer);
+                timer = null;
+                ui.time.textContent = "00:00";
+                render();
+            }
+
+            function render() {
+                // Initialize grid if empty
+                if (ui.grid.children.length !== 25) {
+                    ui.grid.innerHTML = '';
+                    for (let i = 0; i < 25; i++) {
+                        const div = document.createElement('div');
+                        div.className = 'zip-cell-new';
+                        div.dataset.index = i;
+                        ui.grid.appendChild(div);
+                    }
+                }
+
+                ui.cells.textContent = state.path.length;
+
+                // Update existing cells
+                const cells = ui.grid.children;
+                for (let i = 0; i < 25; i++) {
+                    const div = cells[i];
+                    const pathIdx = state.path.indexOf(i);
+                    const active = pathIdx !== -1;
+                    const num = state.numbers.find(n => n.index === i)?.value;
+
+                    // Update Active State
+                    if (active) div.classList.add('active');
+                    else div.classList.remove('active');
+
+                    // Generate Connectors
+                    let cons = '';
+                    if (active) {
+                        const prev = pathIdx > 0 ? state.path[pathIdx - 1] : -1;
+                        const next = pathIdx < state.path.length - 1 ? state.path[pathIdx + 1] : -1;
+                        const add = (t) => {
+                            if (t === -1) return;
+                            const tr = Math.floor(t / 5), tc = t % 5, cr = Math.floor(i / 5), cc = i % 5;
+                            if (tr < cr) cons += `<div class="connector" style="top:-25%; left:20px; width:10px; height:75%;"></div>`;
+                            if (tr > cr) cons += `<div class="connector" style="bottom:-25%; left:20px; width:10px; height:75%;"></div>`;
+                            if (tc < cc) cons += `<div class="connector" style="left:-25%; top:20px; width:75%; height:10px;"></div>`;
+                            if (tc > cc) cons += `<div class="connector" style="right:-25%; top:20px; width:75%; height:10px;"></div>`;
+                        };
+                        add(prev); add(next);
+                    }
+
+                    // Update Content
+                    const dotColor = active ? '#fff' : 'var(--zip-dot)';
+                    div.innerHTML = `
+                    ${cons}
+                    <div style="width:12px; height:12px; border-radius:50%; background:${dotColor}; position:absolute; z-index:10; pointer-events: none;"></div>
+                    ${num ? `<span style="font-size:1.4rem; font-weight:800; color:${active ? 'white' : 'var(--zip-num)'}; z-index:20; pointer-events: none;">${num}</span>` : ''}
+                `;
+                }
+            }
+
+            function handle(idx) {
+                const numObj = state.numbers.find(n => n.index === idx);
+
+                // Start
+                if (state.path.length === 0) {
+                    if (numObj && numObj.value === 1) {
+                        state.path.push(idx);
+                        startTimer(); render(); drawing = true;
+                    }
+                    return;
+                }
+
+                // Truncate
+                if (state.path.includes(idx)) {
+                    state.path = state.path.slice(0, state.path.indexOf(idx) + 1);
+                    render(); drawing = true;
+                    return;
+                }
+
+                // Move
+                const last = state.path[state.path.length - 1];
+                const r1 = Math.floor(last / 5), c1 = last % 5, r2 = Math.floor(idx / 5), c2 = idx % 5;
+
+                if (Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1) {
+                    let expected = 1;
+                    // Calculate next expected number based on path
+                    for (const p of state.path) {
+                        const v = state.numbers.find(n => n.index === p)?.value;
+                        if (v === expected) expected++;
+                    }
+
+                    if (numObj) {
+                        if (numObj.value === expected) {
+                            state.path.push(idx);
+                            render(); drawing = true;
+                        }
+                    } else {
+                        state.path.push(idx);
+                        render(); drawing = true;
+                    }
+
+                    // Win Check: If FULL, YOU WIN.
+                    if (state.path.length === TOTAL) {
+                        if (timer) clearInterval(timer);
+
+                        // Session Tracking
+                        if (!window.sessionWins) window.sessionWins = 0;
+                        if (!window.sessionBest) window.sessionBest = 9999;
+
+                        window.sessionWins++;
+                        if (sec < window.sessionBest) window.sessionBest = sec;
+
+                        // CONFETTI CELEBRATION!
+                        if (window.confetti) window.confetti.celebrate();
+                        if (window.confetti) window.confetti.celebrate();
+
+                        if (window.SoundManager) window.SoundManager.play('win');
+                        if (window.SoundManager) window.SoundManager.play('win');
+
+                        // UI: Show Custom Win Modal
+                        ui.win.innerHTML = `
+                            <div class="win-modal" style="background: #1e2028; padding: 2rem; border-radius: 1rem; border: 1px solid #3b82f6; text-align: center; max-width: 90%;">
+                                <h2 style="font-size: 2rem; margin-bottom: 1rem;">Tebrikler! 🎉</h2>
+                                <p style="color: #9ca3af; margin-bottom: 2rem;">Bölümü tamamladın.</p>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <button id="keep-playing-btn" style="background: #3b82f6; color: white; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                                        Sonraki Bölüm (Devam Et)
+                                    </button>
+                                    <button id="save-exit-btn" style="background: #10b981; color: white; padding: 12px; border-radius: 8px; font-weight: bold; border: 2px solid white; cursor: pointer;">
+                                        💾 Kaydet ve Ana Menüye Dön
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        ui.win.classList.remove('hidden');
+
+                        // Event Listeners for new buttons
+                        document.getElementById('keep-playing-btn').onclick = () => {
+                            ui.win.classList.add('hidden');
+                            newGame();
+                        };
+
+                        document.getElementById('save-exit-btn').onclick = () => {
+                            // Redirect with data and daily flag
+                            const dailyParam = state.mode === 'daily' ? '&daily=true' : '';
+                            window.location.href = `../index.html?save=zip&wins=${window.sessionWins}&time=${window.sessionBest}${dailyParam}`;
+                        };
+                    }
+                }
+            }
+
+            function startTimer() {
+                if (timer) return;
+                timer = setInterval(() => {
+                    sec++;
+                    const m = Math.floor(sec / 60), s = sec % 60;
+                    ui.time.textContent = `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+                }, 1000);
+            }
+
+            if (ui.grid) {
+                document.getElementById('reset').onclick = reset;
+                document.getElementById('overlay-new').onclick = () => { ui.win.classList.add('hidden'); newGame(state.mode); };
+
+                // MOUSE
+                const act = (e, x, y) => {
+                    const el = document.elementFromPoint(x, y);
+                    if (el && el.closest('.zip-cell-new')) handle(parseInt(el.closest('.zip-cell-new').dataset.index));
+                };
+
+                ui.grid.onmousedown = e => { e.preventDefault(); act(e, e.clientX, e.clientY); };
+                ui.grid.onmousemove = e => { if (drawing) { e.preventDefault(); act(e, e.clientX, e.clientY); } };
+                document.onmouseup = () => drawing = false;
+
+                // TOUCH (Explicit non-passive for drag support)
+                ui.grid.addEventListener('touchstart', e => {
+                    if (e.cancelable) e.preventDefault();
+                    act(e, e.touches[0].clientX, e.touches[0].clientY);
+                }, { passive: false });
+
+                ui.grid.addEventListener('touchmove', e => {
+                    if (drawing) {
+                        if (e.cancelable) e.preventDefault();
+                        act(e, e.touches[0].clientX, e.touches[0].clientY);
+                    }
+                }, { passive: false });
+
+                document.addEventListener('touchend', () => drawing = false);
+
+                // Delay start to prevent freeze
+                setTimeout(() => newGame(), 100);
+            } else {
+                logError("Grid Missing");
+            }
+        })();
+    </script>
+    <script src="../js/confetti.js"></script>
+    <!-- TUTORIAL -->
+    <div class="tutorial-overlay" id="tutorialOverlay">
+        <div class="tutorial-modal">
+            <h2 class="tutorial-title" data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <ul class="tutorial-steps">
+                <li data-i18n='tut_zip_1'></li>
+                <li data-i18n='tut_zip_2'></li>
+                <li data-i18n='tut_zip_3'></li>
+            </ul>
+            <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+    <script>        function openTutorial() { document.getElementById('tutorialOverlay').classList.add('show'); }
+        function closeTutorial() { document.getElementById('tutorialOverlay').classList.remove('show'); localStorage.setItem('seen_tut_zip', 'true'); }
+        if (!localStorage.getItem('seen_tut_zip')) setTimeout(openTutorial, 500);</script>
+</body>
+
+</html>

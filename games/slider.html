@@ -1,0 +1,200 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Slaydır - Bulmaca Super App</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <style>
+        .slider-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
+            background: #2d3748;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .tile {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #3730a3;
+            transition: transform 0.1s;
+        }
+
+        .tile:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #3730a3;
+        }
+
+        .tile.empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+        }
+
+        .tile.correct {
+            background: #10b981;
+            box-shadow: 0 4px 0 #059669;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="game-header">
+        <a href="../index.html" class="back-btn">←</a>
+        <h1>🧩 Slaydır (15)</h1>
+        <div class="game-actions">
+            <button class="action-btn" onclick="openTutorial()">❓</button>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="game.newGame('random')"
+                data-i18n="btn_random">🎲 Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="game.newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+        </div>
+        <!-- Daily Mode Badge -->
+        <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅 GÜNLÜK
+            BULMACA</div>
+
+        <div class="slider-board" id="board"></div>
+        <div style="text-align:center; margin-top:20px; color:#aaa;">Sayıları 1'den 15'e kadar sırala</div>
+    </main>
+
+    <!-- TUTORIAL -->
+    <div class="tutorial-overlay" id="tutorialOverlay">
+        <div class="tutorial-modal">
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <ul class="tutorial-steps">
+                <li data-i18n="tut_slider_1">Boş kareye komşu olan sayıya tıklayarak onu boşluğa kaydır.</li>
+                <li data-i18n="tut_slider_2">Amacın sayıları <strong>1'den 15'e kadar</strong> sırasıyla dizmek.</li>
+                <li data-i18n="tut_slider_3">Sol üstten başla: 1, 2, 3, 4...</li>
+            </ul>
+            <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <div class="win-overlay" id="overlay">
+        <div class="win-modal" style="padding: 2rem; text-align: center;">
+            <h2 style="margin-bottom: 1.5rem;" data-i18n="congrats">Tebrikler!</h2>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="win-btn" onclick="game.init()"
+                    style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none;"
+                    data-i18n="btn_play_again">Tekrar
+                    Oyna</button>
+                <button onclick="game.saveAndExit()"
+                    style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: 2px solid white;"
+                    data-i18n="btn_save_exit">💾 Kaydet ve Ana Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/random.js"></script>
+    <script src="../js/base-game.js"></script>
+    <script>
+        class SliderGame extends BaseGame {
+            constructor() {
+                super('slider');
+                // Initialize checks game mode from URL or defaults to random, 
+                // but BaseGame doesn't auto-call newGame in constructor.
+                // We should call newGame('random') or check URL.
+                // Current behavior: game starts immediately.
+                this.newGame('random');
+            }
+
+            init() {
+                this.size = 4;
+                this.grid = Array.from({ length: 15 }, (_, i) => i + 1).concat(0);
+                // Ensure rng exists
+                if (!this.rng) this.rng = new SeededRandom(Date.now());
+
+                this.shuffle();
+                this.render();
+                // Hide overlay
+                const overlay = document.getElementById('overlay');
+                if (overlay) overlay.classList.remove('show');
+            }
+
+            shuffle() {
+                let blank = 15;
+                for (let i = 0; i < 1000; i++) {
+                    const neighbors = [];
+                    const row = Math.floor(blank / 4);
+                    const col = blank % 4;
+
+                    if (row > 0) neighbors.push(blank - 4);
+                    if (row < 3) neighbors.push(blank + 4);
+                    if (col > 0) neighbors.push(blank - 1);
+                    if (col < 3) neighbors.push(blank + 1);
+
+                    const move = this.rng.pick(neighbors);
+                    this.grid[blank] = this.grid[move];
+                    this.grid[move] = 0;
+                    blank = move;
+                }
+            }
+
+            render() {
+                const board = document.getElementById('board');
+                board.innerHTML = '';
+                this.grid.forEach((val, idx) => {
+                    const el = document.createElement('div');
+                    el.className = `tile ${val === 0 ? 'empty' : ''}`;
+                    if (val !== 0) {
+                        el.textContent = val;
+                        if (val === idx + 1) el.classList.add('correct');
+                    }
+                    el.onclick = () => this.click(idx);
+                    board.appendChild(el);
+                });
+            }
+
+            click(idx) {
+                const blank = this.grid.indexOf(0);
+                const row = Math.floor(idx / 4);
+                const col = idx % 4;
+                const bRow = Math.floor(blank / 4);
+                const bCol = blank % 4;
+
+                if (Math.abs(row - bRow) + Math.abs(col - bCol) === 1) {
+                    this.grid[blank] = this.grid[idx];
+                    this.grid[idx] = 0;
+                    this.render();
+                    if (this.checkWin()) {
+                        this.onWin();
+                    }
+                }
+            }
+
+            checkWin() {
+                for (let i = 0; i < 15; i++) {
+                    if (this.grid[i] !== i + 1) return false;
+                }
+                return true;
+            }
+        }
+        const game = new SliderGame();
+        window.game = game;
+    </script>
+    <script src="../js/confetti.js"></script>
+</body>
+
+</html>

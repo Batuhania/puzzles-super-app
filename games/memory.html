@@ -1,0 +1,307 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Hafıza - Bulmaca Super App</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <style>
+        .memory-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 320px;
+            margin: 0 auto;
+        }
+
+        .card {
+            aspect-ratio: 1;
+            background: #2d3748;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.4s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border: 2px solid #4a5568;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+            background: #4a5568;
+            border-color: #6366f1;
+        }
+
+        .card.matched {
+            background: #22c55e;
+            border-color: #22c55e;
+            animation: pulse 0.5s;
+        }
+
+        .card-front,
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+
+        .card-front {
+            transform: rotateY(180deg);
+        }
+
+        .card-back {
+            background: #2d3748;
+            color: #718096;
+            font-size: 1.5rem;
+        }
+
+        .card-back::after {
+            content: '❓';
+            opacity: 0.3;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1) rotateY(180deg);
+            }
+
+            50% {
+                transform: scale(1.1) rotateY(180deg);
+            }
+
+            100% {
+                transform: scale(1) rotateY(180deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="game-header">
+        <a href="../index.html" class="back-btn">←</a>
+        <h1>🧠 Hafıza</h1>
+        <div class="game-actions">
+            <button class="action-btn" onclick="openTutorial()">❓</button>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="game.newGame('random')"
+                data-i18n="btn_random">🎲 Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="game.newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+        </div>
+        <!-- Daily Mode Badge -->
+        <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅 GÜNLÜK
+            BULMACA</div>
+
+        <div class="stats">
+            <div class="stat-box">Hamle: <span id="moves">0</span></div>
+            <div class="stat-box">Eşleşme: <span id="matches">0/8</span></div>
+        </div>
+        <div class="memory-board" id="board"></div>
+    </main>
+
+    <!-- TUTORIAL -->
+    <div class="tutorial-overlay" id="tutorialOverlay">
+        <div class="tutorial-modal">
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <ul class="tutorial-steps">
+                <li data-i18n="tut_memory_1">Kartlara tıklayarak ters çevir.</li>
+                <li data-i18n="tut_memory_2">Aynı sembolü taşıyan <strong>iki kartı</strong> art arda bulursan açık
+                    kalırlar.</li>
+                <li data-i18n="tut_memory_3">Eşleşmezlerse tekrar kapanırlar.</li>
+                <li data-i18n="tut_memory_4">Tüm kartları en az hamlede eşleştirmeye çalış!</li>
+            </ul>
+            <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <div class="win-overlay" id="overlay">
+        <div class="win-modal" style="padding: 2rem; text-align: center;">
+            <h2 style="margin-bottom: 1.5rem;" data-i18n="congrats">Tebrikler!</h2>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="win-btn" onclick="game.init()"
+                    style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none;"
+                    data-i18n="btn_play_again">Tekrar
+                    Oyna</button>
+                <button onclick="game.saveAndExit()"
+                    style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: 2px solid white;"
+                    data-i18n="btn_save_exit">Kaydet ve Ana Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openTutorial() { document.getElementById('tutorialOverlay').classList.add('show'); }
+        function closeTutorial() { document.getElementById('tutorialOverlay').classList.remove('show'); localStorage.setItem('seen_tut_memory', 'true'); }
+        if (!localStorage.getItem('seen_tut_memory')) setTimeout(openTutorial, 500);
+
+        function saveAndExit() {
+            const dailyParam = window.gameMode === 'daily' ? '&daily=true' : '';
+            window.location.href = `../index.html?save=memory&wins=${window.sessionWins || 0}&time=0${dailyParam}`;
+        }
+
+        // Seeded random
+        function mulberry32(a) {
+            return function () {
+                let t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+
+        const ICONS = ['🍎', '🚗', '🐶', '🍕', '⚽', '🚀', '🎸', '💎'];
+
+        class MemoryGame {
+            constructor() { this.newGame('random'); }
+
+            newGame(mode) {
+                window.gameMode = mode;
+
+                // Update UI Buttons
+                document.querySelectorAll('.action-btn').forEach(btn => {
+                    if (btn.id) btn.classList.remove('active');
+                });
+
+                const btnRandom = document.getElementById('btn-random');
+                const btnDaily = document.getElementById('btn-daily');
+
+                if (mode === 'daily') {
+                    btnDaily.classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'inline-flex';
+                    const today = new Date();
+                    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+                    document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                } else {
+                    btnRandom.classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'none';
+                }
+
+                this.init(mode);
+            }
+
+            init(mode = 'random') {
+                this.moves = 0; this.matches = 0;
+                this.flippedCards = []; this.lockBoard = false;
+
+                // Shuffle with seeded random for daily
+                let rng;
+                if (mode === 'daily') {
+                    const today = new Date();
+                    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+                    rng = mulberry32(seed);
+                } else {
+                    rng = Math.random;
+                }
+
+                this.cards = [...ICONS, ...ICONS].sort(() => rng() - 0.5);
+
+                this.render();
+                this.updateStats();
+                document.getElementById('overlay').classList.remove('show');
+            }
+
+            render() {
+                const board = document.getElementById('board');
+                board.innerHTML = '';
+                this.cards.forEach((icon, idx) => {
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    el.innerHTML = `
+                    <div class="card-back"></div>
+                    <div class="card-front">${icon}</div>
+                `;
+                    el.onclick = () => this.flip(el, icon);
+                    board.appendChild(el);
+                });
+            }
+
+            flip(card, icon) {
+                if (this.lockBoard) return;
+                if (card.classList.contains('flipped')) return;
+
+                card.classList.add('flipped');
+                this.flippedCards.push({ card, icon });
+
+                if (this.flippedCards.length === 2) {
+                    this.checkMatch();
+                }
+            }
+
+            checkMatch() {
+                this.moves++;
+                this.updateStats();
+                this.lockBoard = true;
+
+                const [c1, c2] = this.flippedCards;
+
+                if (c1.icon === c2.icon) {
+                    c1.card.classList.add('matched');
+                    c2.card.classList.add('matched');
+                    this.matches++;
+                    this.updateStats();
+                    this.resetTurn();
+                    if (this.matches === 8) {
+                        if (!window.sessionWins) window.sessionWins = 0;
+                        window.sessionWins++;
+                        if (window.confetti) window.confetti.celebrate();
+                        if (window.SoundManager) window.SoundManager.play('win');
+                        setTimeout(() => document.getElementById('overlay').classList.add('show'), 500);
+                        setTimeout(() => document.getElementById('overlay').classList.add('show'), 500);
+                    }
+                } else {
+                    setTimeout(() => {
+                        c1.card.classList.remove('flipped');
+                        c2.card.classList.remove('flipped');
+                        this.resetTurn();
+                    }, 1000);
+                }
+            }
+
+            resetTurn() {
+                this.flippedCards = [];
+                this.lockBoard = false;
+            }
+
+            updateStats() {
+                document.getElementById('moves').textContent = this.moves;
+                document.getElementById('matches').textContent = `${this.matches}/8`;
+            }
+        }
+        const game = new MemoryGame();
+        window.game = game;
+    </script>
+    <script src="../js/confetti.js"></script>
+</body>
+
+</html>

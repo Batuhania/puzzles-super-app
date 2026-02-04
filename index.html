@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bulmaca Super App</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/confetti.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/i18n.js"></script>
+    <style>
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px 10px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .lang-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .lang-btn.active {
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="app-header" style="position: relative;">
+        <!-- Language Switcher (Left) -->
+        <div class="lang-switcher">
+            <button onclick="setLanguage('tr')" class="lang-btn" data-lang="tr" title="Türkçe"
+                style="font-weight: bold; font-size: 14px;">TR</button>
+            <button onclick="setLanguage('en')" class="lang-btn" data-lang="en" title="English"
+                style="font-weight: bold; font-size: 14px;">EN</button>
+        </div>
+
+        <h1 class="app-title" data-i18n="app_title">🧩 Bulmacalar</h1>
+        <p class="app-subtitle" data-i18n="app_subtitle">Popüler zeka oyunları bir arada</p>
+        <button onclick="ThemeStore.toggleMode()" class="theme-btn theme-toggler">🌙</button>
+        <button onclick="SoundManager.toggle(); this.textContent = SoundManager.enabled ? '🔊' : '🔇'"
+            class="sound-btn">🔊</button>
+    </header>
+
+    <!-- FLOATING BUTTONS -->
+    <div class="fab-container fixed bottom-5 right-5 flex gap-3 z-[9999]">
+        <button onclick="openThemeStore()"
+            class="text-white px-5 py-4 rounded-full shadow-2xl flex items-center gap-2 font-bold transition-transform hover:scale-105 border-2 border-white/20"
+            style="background-color: var(--primary);">
+            🎨
+        </button>
+        <button onclick="openProfile()"
+            class="text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-2 font-bold transition-transform hover:scale-105 border-2 border-white/20"
+            style="background-color: var(--primary);">
+            <span>📊</span> <span data-i18n="btn_profile">Profil</span>
+        </button>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value" id="gamesPlayed">0</div>
+            <div class="stat-label" data-i18n="stat_games">Oyun</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="totalWins">0</div>
+            <div class="stat-label" data-i18n="stat_wins">Kazanma</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="currentStreak">0</div>
+            <div class="stat-label" data-i18n="stat_streak">Seri</div>
+        </div>
+    </div>
+
+    <!-- DAILY CHALLENGE (Enhanced) -->
+    <a href="#" id="dailyBannerLink" class="daily-banner"
+        style="text-decoration: none; display: block; cursor: pointer;">
+        <div class="daily-badge" data-i18n="daily_badge">⭐ BUGÜNÜN ÖNE ÇIKANI</div>
+        <div class="daily-content">
+            <span id="dailyIcon" class="daily-icon">👑</span>
+            <div class="daily-info">
+                <div class="daily-title" data-i18n="daily_title">📅 Günün Bulmacası</div>
+                <div class="daily-game-name">
+                    <span id="dailyName">Yükleniyor...</span>
+                    <span id="dailyStatus" class="daily-status"></span>
+                </div>
+            </div>
+            <div class="daily-arrow">→</div>
+        </div>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5); text-align: center; margin-top: 8px;"
+            data-i18n="daily_hint">
+            💡 Tüm oyunların kendi günlük bulmacası var!
+        </div>
+    </a>
+
+    <!-- GAMES GRID -->
+    <section class="games-section">
+        <!-- <h2 class="section-title">Oyunlar</h2> -->
+        <div class="games-grid">
+            <a href="games/zip.html" class="game-card zip">
+                <span class="game-icon">🔗</span>
+                <div class="game-name" data-i18n="game_zip">Zip</div>
+                <div class="game-desc" data-i18n="game_zip_desc">Sayıları sırayla bağla</div>
+            </a>
+
+            <a href="games/queens.html" class="game-card queens">
+                <span class="game-icon">👑</span>
+                <div class="game-name" data-i18n="game_queens">Queens</div>
+                <div class="game-desc" data-i18n="game_queens_desc">Vezirleri stratejik yerleştir</div>
+            </a>
+
+            <a href="games/sudoku.html" class="game-card sudoku">
+                <span class="game-icon">🔢</span>
+                <div class="game-name" data-i18n="game_sudoku">Sudoku</div>
+                <div class="game-desc" data-i18n="game_sudoku_desc">Klasik sayı bulmacası</div>
+            </a>
+
+            <a href="games/nonogram.html" class="game-card nonogram">
+                <span class="game-icon">🖼️</span>
+                <div class="game-name" data-i18n="game_nonogram">Nonogram</div>
+                <div class="game-desc" data-i18n="game_nonogram_desc">Kare karalamaca</div>
+            </a>
+
+            <a href="games/binary.html" class="game-card binary">
+                <span class="game-icon">0️⃣1️⃣</span>
+                <div class="game-name" data-i18n="game_binary">Binary</div>
+                <div class="game-desc" data-i18n="game_binary_desc">0 ve 1 mantığı</div>
+            </a>
+
+            <a href="games/wordle.html" class="game-card wordle">
+                <span class="game-icon">📝</span>
+                <div class="game-name" data-i18n="game_wordle">Wordle</div>
+                <div class="game-desc" data-i18n="game_wordle_desc">Kelime tahmin et</div>
+            </a>
+
+            <a href="games/2048.html" class="game-card game2048">
+                <span class="game-icon">🎯</span>
+                <div class="game-name" data-i18n="game_2048">2048</div>
+                <div class="game-desc" data-i18n="game_2048_desc">Karoları birleştir</div>
+            </a>
+
+            <a href="games/minesweeper.html" class="game-card minesweeper">
+                <span class="game-icon">💣</span>
+                <div class="game-name" data-i18n="game_minesweeper">Mayın Tarlası</div>
+                <div class="game-desc" data-i18n="game_minesweeper_desc">Mayınlardan kaç</div>
+            </a>
+
+            <a href="games/memory.html" class="game-card memory">
+                <span class="game-icon">🧠</span>
+                <div class="game-name" data-i18n="game_memory">Hafıza</div>
+                <div class="game-desc" data-i18n="game_memory_desc">Kart eşleştirme</div>
+            </a>
+
+            <a href="games/slider.html" class="game-card slider">
+                <span class="game-icon">🧩</span>
+                <div class="game-name" data-i18n="game_slider">Slaydır</div>
+                <div class="game-desc" data-i18n="game_slider_desc">15 Yapboz</div>
+            </a>
+
+            <a href="games/lightsout.html" class="game-card lightsout">
+                <span class="game-icon">💡</span>
+                <div class="game-name" data-i18n="game_lightsout">Işıklar</div>
+                <div class="game-desc" data-i18n="game_lightsout_desc">Hepsini söndür</div>
+            </a>
+
+            <a href="games/mastermind.html" class="game-card mastermind">
+                <span class="game-icon">🕵️‍♂️</span>
+                <div class="game-name" data-i18n="game_mastermind">Şifre Kırıcı</div>
+                <div class="game-desc" data-i18n="game_mastermind_desc">Gizli kodu çöz</div>
+            </a>
+
+            <a href="games/floodit.html" class="game-card floodit">
+                <span class="game-icon">🎨</span>
+                <div class="game-name" data-i18n="game_floodit">Renk Taşkını</div>
+                <div class="game-desc" data-i18n="game_floodit_desc">Tek renk yap</div>
+            </a>
+
+            <a href="games/kakuro.html" class="game-card kakuro">
+                <span class="game-icon">➕</span>
+                <div class="game-name" data-i18n="game_kakuro">Kakuro</div>
+                <div class="game-desc" data-i18n="game_kakuro_desc">Matematik bulmaca</div>
+            </a>
+
+            <a href="games/kenken.html" class="game-card kenken">
+                <span class="game-icon">🔢</span>
+                <div class="game-name" data-i18n="game_kenken">KenKen</div>
+                <div class="game-desc" data-i18n="game_kenken_desc">Kafes matematik</div>
+            </a>
+
+            <a href="games/futoshiki.html" class="game-card futoshiki">
+                <span class="game-icon">⚖️</span>
+                <div class="game-name" data-i18n="game_futoshiki">Futoshiki</div>
+                <div class="game-desc" data-i18n="game_futoshiki_desc">Eşitsizlik bulmaca</div>
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER REMOVED
+    <footer class="app-footer" style="padding-bottom: 100px;">
+        <p>Bulmaca Super App v1.5</p>
+    </footer>
+    -->
+
+    <!-- PROFILE MODAL -->
+    <div id="profileModal" class="fixed inset-0 bg-black/90 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-[#1e2028] border border-[#2e3248] rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+                    data-i18n="profile_title">
+                    Oyuncu Profili</h2>
+                <button onclick="closeProfile()" class="text-gray-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            <div id="profileStatsContent" class="space-y-4"></div>
+
+            <div class="mt-8 pt-4 border-t border-white/10 text-center">
+                <button
+                    onclick="if(window.i18n ? confirm(window.i18n.t('confirm_reset')) : confirm('Tüm kayıtlar silinsin mi?')) { localStorage.clear(); location.reload(); }"
+                    class="text-red-500 text-xs underline hover:text-red-400" data-i18n="btn_reset_data">
+                    Tüm Kayıtları Sıfırla
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- THEME STORE MODAL -->
+    <div id="themeModal" class="theme-modal">
+        <div class="theme-modal-content">
+            <h2 class="theme-modal-title" data-i18n="theme_store_title">🎨 Tema Mağazası</h2>
+            <div class="themes-grid" id="themesGrid"></div>
+            <button class="theme-close-btn" onclick="closeThemeStore()" data-i18n="btn_close">Kapat</button>
+        </div>
+    </div>
+
+    <!-- Theme Store Script -->
+    <script src="js/theme.js"></script>
+
+    <!-- INLINE LOGIC (To bypass file:// restrictions and caching) -->
+    <script>
+        // 1. STATS MANAGER
+        const StatsManager = {
+            KEY: 'bulmaca_super_app_stats_v1',
+            STREAK_KEY: 'bulmaca_super_app_streak',
+            load() {
+                try { return JSON.parse(localStorage.getItem(this.KEY)) || {}; }
+                catch (e) { console.error(e); return {}; }
+            },
+            update(gameId, won, time) {
+                const data = this.load();
+                if (!data[gameId]) data[gameId] = { played: 0, won: 0, bestTime: null };
+
+                data[gameId].played++;
+                if (won) {
+                    data[gameId].won++;
+                    if (time && (!data[gameId].bestTime || time < data[gameId].bestTime)) {
+                        data[gameId].bestTime = time;
+                    }
+                }
+                this.save(data);
+
+                // Update Streak if won daily
+                // (Logic needs to check if it was a daily game, but for now simplistic)
+            },
+            save(data) {
+                try { localStorage.setItem(this.KEY, JSON.stringify(data)); }
+                catch (e) { console.error(e); }
+            },
+            getTotalSolved() {
+                const stats = this.load();
+                return Object.values(stats).reduce((acc, curr) => acc + (curr.solved || 0), 0);
+            },
+            formatTime(seconds) {
+                if (!seconds) return '-';
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            },
+            // STREAK SYSTEM
+            loadStreak() {
+                try { return JSON.parse(localStorage.getItem(this.STREAK_KEY)) || { streak: 0, lastDate: null }; }
+                catch (e) { return { streak: 0, lastDate: null }; }
+            },
+            saveStreak(data) {
+                try { localStorage.setItem(this.STREAK_KEY, JSON.stringify(data)); }
+                catch (e) { console.error(e); }
+            },
+            updateStreak() {
+                const data = this.loadStreak();
+                const today = new Date().toDateString();
+                const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+                if (data.lastDate === today) {
+                    // Already played today, no change
+                    return data.streak;
+                } else if (data.lastDate === yesterday) {
+                    // Played yesterday, streak continues!
+                    data.streak++;
+                    data.lastDate = today;
+                    this.saveStreak(data);
+                    return data.streak;
+                } else {
+                    // Missed a day, reset streak
+                    data.streak = 1;
+                    data.lastDate = today;
+                    this.saveStreak(data);
+                    return data.streak;
+                }
+            },
+            getStreak() {
+                const data = this.loadStreak();
+                const today = new Date().toDateString();
+                const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+                // If last play was before yesterday, streak is broken
+                if (data.lastDate !== today && data.lastDate !== yesterday) {
+                    return 0;
+                }
+                return data.streak;
+            },
+            // DAILY CHALLENGE SYSTEM
+            DAILY_KEY: 'bulmaca_daily_challenge',
+            DAILY_GAMES_KEY: 'bulmaca_daily_games', // NEW: Per-game daily tracking
+            GAMES_LIST: [
+                { id: 'zip', i18nKey: 'game_zip', icon: '🔗', url: 'games/zip.html' },
+                { id: 'queens', i18nKey: 'game_queens', icon: '👑', url: 'games/queens.html' },
+                { id: 'sudoku', i18nKey: 'game_sudoku', icon: '🔢', url: 'games/sudoku.html' },
+                { id: 'nonogram', i18nKey: 'game_nonogram', icon: '🖼️', url: 'games/nonogram.html' },
+                { id: 'binary', i18nKey: 'game_binary', icon: '0️⃣', url: 'games/binary.html' },
+                { id: 'wordle', i18nKey: 'game_wordle', icon: '📝', url: 'games/wordle.html' },
+                { id: 'game2048', i18nKey: 'game_2048', icon: '🎯', url: 'games/2048.html' },
+                { id: 'minesweeper', i18nKey: 'game_minesweeper', icon: '💣', url: 'games/minesweeper.html' },
+                { id: 'memory', i18nKey: 'game_memory', icon: '🧠', url: 'games/memory.html' },
+                { id: 'slider', i18nKey: 'game_slider', icon: '🧩', url: 'games/slider.html' },
+                { id: 'lightsout', i18nKey: 'game_lightsout', icon: '💡', url: 'games/lightsout.html' },
+                { id: 'mastermind', i18nKey: 'game_mastermind', icon: '🕵️‍♂️', url: 'games/mastermind.html' },
+                { id: 'floodit', i18nKey: 'game_floodit', icon: '🎨', url: 'games/floodit.html' },
+                { id: 'kakuro', i18nKey: 'game_kakuro', icon: '➕', url: 'games/kakuro.html' },
+                { id: 'kenken', i18nKey: 'game_kenken', icon: '🔢', url: 'games/kenken.html' },
+                { id: 'futoshiki', i18nKey: 'game_futoshiki', icon: '⚖️', url: 'games/futoshiki.html' }
+            ],
+            getDailyChallenge() {
+                // Use date as seed for consistent daily game (Featured Daily)
+                const today = new Date();
+                const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+                const index = seed % this.GAMES_LIST.length;
+                const game = this.GAMES_LIST[index];
+                // Return with translated name
+                return { ...game, name: window.i18n ? window.i18n.t(game.i18nKey) : game.i18nKey };
+            },
+            // Featured Daily Challenge Status
+            loadDailyStatus() {
+                try { return JSON.parse(localStorage.getItem(this.DAILY_KEY)) || { date: null, completed: false }; }
+                catch (e) { return { date: null, completed: false }; }
+            },
+            saveDailyStatus(data) {
+                try { localStorage.setItem(this.DAILY_KEY, JSON.stringify(data)); }
+                catch (e) { console.error(e); }
+            },
+            isDailyCompleted() {
+                const data = this.loadDailyStatus();
+                const today = new Date().toDateString();
+                return data.date === today && data.completed;
+            },
+            completeDailyChallenge() {
+                const today = new Date().toDateString();
+                this.saveDailyStatus({ date: today, completed: true });
+            },
+            checkAndCompleteDailyChallenge(gameId) {
+                const daily = this.getDailyChallenge();
+                if (gameId === daily.id && !this.isDailyCompleted()) {
+                    this.completeDailyChallenge();
+                    return true; // Newly completed!
+                }
+                return false;
+            },
+            // Per-Game Daily Tracking (Noon-based periods: 12:00-12:00)
+            getDailyPeriod() {
+                // Returns a unique period ID that changes at 12:00 noon
+                const now = new Date();
+                const hour = now.getHours();
+                // If before noon, use yesterday's date as period base
+                // If after noon, use today's date
+                if (hour < 12) {
+                    const yesterday = new Date(now.getTime() - 86400000);
+                    return yesterday.toDateString() + '_PM';
+                } else {
+                    return now.toDateString() + '_PM';
+                }
+            },
+            loadDailyGames() {
+                try {
+                    const data = JSON.parse(localStorage.getItem(this.DAILY_GAMES_KEY)) || {};
+                    const currentPeriod = this.getDailyPeriod();
+                    // Reset if period changed (noon passed)
+                    if (data.period !== currentPeriod) {
+                        return { period: currentPeriod, completed: {} };
+                    }
+                    return data;
+                } catch (e) { return { period: this.getDailyPeriod(), completed: {} }; }
+            },
+            saveDailyGames(data) {
+                try { localStorage.setItem(this.DAILY_GAMES_KEY, JSON.stringify(data)); }
+                catch (e) { console.error(e); }
+            },
+            markDailySolved(gameId) {
+                // Called when a DAILY MODE game is won (not random mode)
+                const data = this.loadDailyGames();
+                data.completed[gameId] = true;
+                this.saveDailyGames(data);
+            },
+            isDailySolved(gameId) {
+                const data = this.loadDailyGames();
+                return data.completed[gameId] === true;
+            },
+            getTodayCompletedGames() {
+                const data = this.loadDailyGames();
+                return Object.keys(data.completed).filter(k => data.completed[k]);
+            }
+        };
+
+        // 2. ACHIEVEMENT MANAGER
+        const AchievementManager = {
+            KEY: 'bulmaca_achievements',
+            ACHIEVEMENTS: [
+                { id: 'first_win', icon: '🏅', check: (stats) => stats.totalWins >= 1 },
+                { id: 'five_wins', icon: '🎖️', check: (stats) => stats.totalWins >= 5 },
+                { id: 'ten_wins', icon: '🏆', check: (stats) => stats.totalWins >= 10 },
+                { id: 'daily_done', icon: '📅', check: (stats) => stats.dailyCompleted },
+                { id: 'streak_3', icon: '🔥', check: (stats) => stats.streak >= 3 },
+                { id: 'all_games', icon: '🧩', check: (stats) => stats.uniqueGames >= 10 }
+            ],
+            load() {
+                try { return JSON.parse(localStorage.getItem(this.KEY)) || []; }
+                catch (e) { return []; }
+            },
+            save(unlocked) {
+                try { localStorage.setItem(this.KEY, JSON.stringify(unlocked)); }
+                catch (e) { console.error(e); }
+            },
+            check() {
+                const unlocked = this.load();
+                const stats = {
+                    totalWins: StatsManager.getTotalSolved(),
+                    streak: StatsManager.getStreak(),
+                    dailyCompleted: StatsManager.isDailyCompleted(),
+                    uniqueGames: Object.keys(StatsManager.load()).filter(k => StatsManager.load()[k].solved > 0).length
+                };
+
+                let newlyUnlocked = [];
+                this.ACHIEVEMENTS.forEach(ach => {
+                    if (!unlocked.includes(ach.id) && ach.check(stats)) {
+                        unlocked.push(ach.id);
+                        newlyUnlocked.push(ach);
+                    }
+                });
+
+                if (newlyUnlocked.length > 0) {
+                    this.save(unlocked);
+                    newlyUnlocked.forEach(ach => this.showToast(ach));
+                }
+                return unlocked;
+            },
+            showToast(ach) {
+                // Play sound
+                if (window.SoundManager) window.SoundManager.play('correct');
+
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = 'achievement-toast';
+                toast.innerHTML = `
+                    <span class="toast-icon">${ach.icon}</span>
+                    <div class="toast-content">
+                        <div class="toast-title">${window.i18n ? window.i18n.t('label_achievements') : 'Başarım Açıldı!'}</div>
+                        <div class="toast-name">${window.i18n ? window.i18n.t(`ach_${ach.id}_name`) : ach.id}</div>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+
+                // Animate in
+                setTimeout(() => toast.classList.add('show'), 100);
+                // Remove after 3s
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 500);
+                }, 3000);
+            },
+            getUnlocked() {
+                return this.load();
+            }
+        };
+
+        function updateDashboard() {
+            // A. CHECK FOR INCOMING DATA (From Games via URL)
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('save')) {
+                const game = params.get('save');
+                const wins = parseInt(params.get('wins') || '0');
+                const best = parseInt(params.get('time') || '0');
+
+                if (game && wins > 0) {
+                    // Update detailed stats (always)
+                    StatsManager.update(game, wins > 0, best > 0 ? best : null);
+
+                    // Check if this was a DAILY MODE win (via URL param)
+                    const isDaily = params.get('daily') === 'true';
+                    if (isDaily) {
+                        // Mark this game's daily puzzle as solved (for checkmarks)
+                        StatsManager.markDailySolved(game);
+                    }
+
+                    // UPDATE STREAK
+                    const newStreak = StatsManager.updateStreak();
+
+                    // CHECK FEATURED DAILY CHALLENGE
+                    const dailyCompleted = StatsManager.checkAndCompleteDailyChallenge(game);
+
+                    // BUILD MESSAGE
+                    let message = `✅ ${wins} Yeni Zafer Kaydedildi!\n🔥 Seri: ${newStreak} gün`;
+                    if (dailyCompleted) {
+                        message += `\n\n🏆 GÜNÜN BULMACASI TAMAMLANDI!`;
+                        if (window.confetti) window.confetti.celebrate();
+                    }
+
+                    // RELOAD PAGE WITH CLEAN URL (Guaranteed UI Update)
+                    // IMPROVED: No alert, no reload. Seamless update.
+                    window.history.replaceState({}, document.title, window.location.pathname);
+
+                    // Show Custom Toast (Reusing Achievement Toast Style)
+                    const toast = document.createElement('div');
+                    toast.className = 'achievement-toast show'; // 'show' triggers animation immediately
+                    toast.innerHTML = `
+                        <span class="toast-icon">💾</span>
+                        <div class="toast-content">
+                            <div class="toast-title">${window.i18n ? window.i18n.t('congrats') : 'Kaydedildi!'}</div>
+                            <div class="toast-name">${wins} Yeni Zafer! Seri: ${newStreak}</div>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 500); }, 4000);
+
+                    // Continue to update dashboard UI below...
+
+                }
+            }
+
+            // B. Update UI (RUNS ON EVERY PAGE LOAD)
+            const total = StatsManager.getTotalSolved();
+            const allStats = StatsManager.load();
+            const played = Object.values(allStats).reduce((acc, curr) => acc + (curr.played || 0), 0);
+
+
+
+            const gamesEl = document.getElementById('gamesPlayed');
+            const winsEl = document.getElementById('totalWins');
+
+            if (gamesEl) {
+                gamesEl.textContent = played;
+                gamesEl.innerText = played; // Fallback
+            } else {
+                console.error('gamesPlayed element NOT FOUND!');
+            }
+
+            if (winsEl) {
+                winsEl.textContent = total;
+                winsEl.innerText = total; // Fallback
+            } else {
+                console.error('totalWins element NOT FOUND!');
+            }
+
+            // C. Update Streak Display
+            const streakEl = document.getElementById('currentStreak');
+            if (streakEl) {
+                const streak = StatsManager.getStreak();
+                streakEl.textContent = streak;
+                streakEl.innerText = streak;
+            }
+
+            // D. Update Daily Challenge Banner
+            const daily = StatsManager.getDailyChallenge();
+            const dailyCompleted = StatsManager.isDailyCompleted();
+
+            document.getElementById('dailyIcon').textContent = daily.icon;
+            document.getElementById('dailyName').textContent = daily.name;
+            document.getElementById('dailyBannerLink').href = daily.url + '?mode=daily';
+
+            const statusEl = document.getElementById('dailyStatus');
+            if (dailyCompleted) {
+                statusEl.textContent = window.i18n ? '✅ ' + window.i18n.t('daily_solved').replace('✅ ', '') : '✅ Tamamlandı!';
+                statusEl.style.color = '#10b981';
+            } else {
+                statusEl.textContent = window.i18n ? '⏳ ' + window.i18n.t('daily_waiting').replace('⏳ ', '') : '⏳ Bekliyor';
+                statusEl.style.color = '#f59e0b';
+            }
+
+            // E. Check Achievements
+            AchievementManager.check();
+
+            // F. Mark Games with Checkmarks (DAILY PUZZLE SOLVED)
+            const gameCards = document.querySelectorAll('.game-card');
+            gameCards.forEach(card => {
+                // Extract game ID from href (e.g., games/zip.html -> zip)
+                const href = card.getAttribute('href');
+                if (!href) return;
+                const match = href.match(/games\/(\w+)\.html/);
+                if (!match) return;
+                const gameId = match[1];
+
+                // Check if this game's DAILY PUZZLE was solved (resets at noon)
+                if (StatsManager.isDailySolved(gameId)) {
+                    card.classList.add('played');
+                } else {
+                    card.classList.remove('played');
+                }
+            });
+        }
+
+        function openProfile() {
+            const modal = document.getElementById('profileModal');
+            const content = document.getElementById('profileStatsContent');
+            const data = StatsManager.load();
+
+            modal.classList.remove('hidden');
+            content.innerHTML = '';
+
+            const games = [
+                { id: 'zip', name: 'Zip', icon: '🔗' },
+                { id: 'queens', name: 'Queens', icon: '👑' },
+                { id: 'sudoku', name: 'Sudoku', icon: '🔢' },
+                { id: 'nonogram', name: 'Nonogram', icon: '🖼️' },
+                { id: 'binary', name: 'Binary', icon: '0️⃣1️⃣' },
+                { id: 'wordle', name: 'Wordle', icon: '📝' },
+                { id: 'game2048', name: '2048', icon: '🎯' },
+                { id: 'minesweeper', name: 'Mayın', icon: '💣' },
+                { id: 'memory', name: 'Hafıza', icon: '🧠' },
+                { id: 'slider', name: 'Slaydır', icon: '🧩' },
+                { id: 'lightsout', name: 'Işıklar', icon: '💡' },
+                { id: 'mastermind', name: 'Şifre', icon: '🕵️‍♂️' },
+                { id: 'floodit', name: 'Renk', icon: '🎨' },
+                { id: 'kakuro', name: 'Kakuro', icon: '➕' },
+                { id: 'kenken', name: 'KenKen', icon: '🔢' },
+                { id: 'futoshiki', name: 'Futoshiki', icon: '⚖️' }
+            ];
+
+            let hasData = false;
+            games.forEach(g => {
+                const stat = data[g.id];
+                if (stat && (stat.played > 0 || stat.solved > 0)) {
+                    hasData = true;
+
+                    // Handle legacy data (where only 'solved' existed)
+                    const played = stat.played || stat.solved || 0;
+                    const won = stat.won || stat.solved || 0;
+                    const rate = played > 0 ? Math.round((won / played) * 100) : 100;
+                    const best = stat.bestTime ? StatsManager.formatTime(stat.bestTime) : '-';
+
+                    content.insertAdjacentHTML('beforeend', `
+                        <div class="bg-white/5 p-3 rounded-xl flex items-center justify-between transition hover:bg-white/10 border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl w-8 text-center">${g.icon}</span>
+                                <div>
+                                    <div class="font-bold text-white text-sm">${g.name}</div>
+                                    <div class="text-[10px] text-gray-400">${window.i18n ? window.i18n.t('label_best_score') : 'En İyi: '}<span class="text-blue-400">${best}</span></div>
+                                </div>
+                            </div>
+                            <div class="flex gap-4 text-right">
+                                <div>
+                                    <div class="text-sm font-mono text-emerald-400 font-bold">${won}</div>
+                                    <div class="text-[9px] text-gray-500 uppercase">${window.i18n ? window.i18n.t('label_total_wins') : 'Zafer'}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-mono text-amber-400 font-bold">%${rate}</div>
+                                    <div class="text-[9px] text-gray-500 uppercase">${window.i18n ? window.i18n.t('label_rate') : 'Oran'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+            });
+
+            if (!hasData) {
+                content.innerHTML = `
+                    <div class="text-center text-gray-500 py-8 flex flex-col items-center gap-4">
+                        <span class="text-4xl opacity-50">🎮</span>
+                        <p>${window.i18n ? window.i18n.t('no_data_text') : 'Henüz oyun verisi yok.<br>Hadi bir oyun kazan!'}</p>
+                        <a href="games/zip.html" class="text-blue-400 text-sm hover:underline">${window.i18n ? window.i18n.t('link_play_zip') : 'Zip oyna →'}</a>
+                    </div>
+                `;
+            }
+
+            // ACHIEVEMENTS SECTION
+            const unlocked = AchievementManager.getUnlocked();
+
+            const badgeTitle = document.createElement('h3');
+            badgeTitle.className = 'text-lg font-bold text-white mt-8 mb-4 flex items-center gap-2';
+            badgeTitle.innerHTML = window.i18n ? window.i18n.t('label_achievements') : '🏆 Başarımlar';
+            content.appendChild(badgeTitle);
+
+            const badgesGrid = document.createElement('div');
+            badgesGrid.className = 'badges-grid';
+
+            AchievementManager.ACHIEVEMENTS.forEach(ach => {
+                const isUnlocked = unlocked.includes(ach.id);
+                const badgeCard = document.createElement('div');
+                badgeCard.className = `badge-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+
+                badgeCard.innerHTML = `
+                    <span class="badge-icon">${ach.icon}</span>
+                    <div class="badge-name">${window.i18n ? window.i18n.t(`ach_${ach.id}_name`) : ach.id}</div>
+                    <div class="badge-desc">${window.i18n ? window.i18n.t(`ach_${ach.id}_desc`) : ''}</div>
+                    ${isUnlocked ? '<div class="badge-check">✓</div>' : ''}
+                `;
+                badgesGrid.appendChild(badgeCard);
+            });
+            content.appendChild(badgesGrid);
+        }
+
+        function closeProfile() {
+            document.getElementById('profileModal').classList.add('hidden');
+        }
+
+        /* THEME SYSTEM */
+        // Init
+        document.addEventListener('DOMContentLoaded', updateDashboard);
+    </script>
+
+    <script src="js/app.js"></script>
+    <script src="js/confetti.js"></script>
+    <script src="js/sound.js"></script>
+    <script>
+        // Init Sound Button State
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.querySelector('.sound-btn');
+            if (btn && SoundManager) {
+                btn.textContent = SoundManager.enabled ? '🔊' : '🔇';
+            }
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+
+</html>

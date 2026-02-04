@@ -1,0 +1,324 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Nonogram - Bulmaca Super App</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <style>
+        .nono-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: auto;
+            max-width: 100%;
+        }
+
+        .nono-board {
+            display: grid;
+            gap: 1px;
+            background: var(--border);
+            border: 2px solid var(--text-muted);
+            margin: 10px;
+            user-select: none;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .cell.filled {
+            background: var(--primary);
+        }
+
+        .cell.crossed::after {
+            content: '✕';
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        .cell.hint {
+            background: transparent;
+            color: #aaa;
+            font-size: 0.8rem;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .mode-btn {
+            background: var(--bg-card);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="game-header">
+        <a href="../index.html" class="back-btn">←</a>
+        <h1>🖼️ Nonogram</h1>
+        <div class="game-actions">
+            <button class="action-btn" onclick="openTutorial()">❓</button>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="game.newGame('random')"
+                data-i18n="btn_random">🎲 Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="game.newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+        </div>
+        <!-- Daily Mode Badge -->
+        <div id="daily-badge" class="daily-mode-badge" style="display: none;" data-i18n="daily_puzzle_badge">📅 GÜNLÜK
+            BULMACA</div>
+
+        <div class="controls">
+            <button class="mode-btn active" id="btn-fill" onclick="game.setMode('fill')">⬛ Dolu</button>
+            <button class="mode-btn" id="btn-cross" onclick="game.setMode('cross')">✕ Boş</button>
+        </div>
+        <div class="nono-container">
+            <div id="board" class="nono-board"></div>
+        </div>
+    </main>
+
+    <!-- TUTORIAL -->
+    <div class="tutorial-overlay" id="tutorialOverlay">
+        <div class="tutorial-modal">
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <ul class="tutorial-steps">
+                <li data-i18n="tut_nonogram_1">Satır ve sütunlardaki sayılar, o sırada <strong>kaç tane bitişik karenin
+                        dolu</strong> olduğunu
+                    gösterir.</li>
+                <li data-i18n="tut_nonogram_2">Örneğin "2 1" yazıyorsa: Önce 2 bitişik kare dolu, sonra en az 1 boşluk,
+                    sonra 1 kare dolu demektir.
+                </li>
+                <li data-i18n="tut_nonogram_3">Dolu olması gereken yerlere tıklayarak boya.</li>
+                <li data-i18n="tut_nonogram_4">Boş olduğundan emin olduğun yerlere 'Boş' moduyla çarpı koy.</li>
+            </ul>
+            <button class="win-btn" onclick="closeTutorial()" data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <div class="win-overlay" id="overlay">
+        <div class="win-modal" style="padding: 2rem; text-align: center;">
+            <h2 style="margin-bottom: 1.5rem;">Resim Tamamlandı!</h2>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="win-btn" onclick="game.next()"
+                    style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none;"
+                    data-i18n="btn_next_level">Sonraki
+                    Bölüm</button>
+                <button onclick="game.saveAndExit()"
+                    style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; border: 2px solid white;"
+                    data-i18n="btn_save_exit">💾 Kaydet ve Ana Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openTutorial() { document.getElementById('tutorialOverlay').classList.add('show'); }
+        function closeTutorial() { document.getElementById('tutorialOverlay').classList.remove('show'); localStorage.setItem('seen_tut_nono', 'true'); }
+        if (!localStorage.getItem('seen_tut_nono')) setTimeout(openTutorial, 500);
+
+        // ===== NONOGRAM GENERATOR (Endless) =====
+
+        class Nonogram {
+            constructor() { this.level = 1; this.mode = 'fill'; this.gameMode = 'random'; this.board = document.getElementById('board'); this.init(); }
+
+            // Seeded random
+            mulberry32(a) {
+                return function () {
+                    let t = a += 0x6D2B79F5;
+                    t = Math.imul(t ^ t >>> 15, t | 1);
+                    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+                }
+            }
+
+            newGame(mode) {
+                this.gameMode = mode;
+                this.level = 1;
+
+                // Update UI Buttons
+                document.querySelectorAll('.action-btn').forEach(btn => {
+                    if (btn.id) btn.classList.remove('active');
+                });
+
+                const btnRandom = document.getElementById('btn-random');
+                const btnDaily = document.getElementById('btn-daily');
+
+                if (mode === 'daily') {
+                    btnDaily.classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'inline-flex';
+                    const today = new Date();
+                    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+                    this.rng = this.mulberry32(seed);
+                    document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                } else {
+                    btnRandom.classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'none';
+                    this.rng = Math.random;
+                }
+                this.init();
+            }
+
+            init() {
+                const size = Math.min(10, 5 + Math.floor(this.level / 2));
+                this.data = this.generateLevel(size, size);
+
+                this.rowHintMax = Math.max(...this.data.rows.map(r => r.length));
+                this.colHintMax = Math.max(...this.data.cols.map(c => c.length));
+                this.width = this.data.cols.length; this.height = this.data.rows.length;
+                this.gridW = this.width + this.rowHintMax; this.gridH = this.height + this.colHintMax;
+                this.state = Array(this.height).fill(0).map(() => Array(this.width).fill(0));
+                this.render(); document.getElementById('overlay').classList.remove('show');
+            }
+
+            generateLevel(w, h) {
+                const rng = this.rng || Math.random;
+                const solution = Array(h).fill(0).map(() => Array(w).fill(0).map(() => rng() > 0.4 ? 1 : 0));
+
+                const rows = solution.map(row => this.getHints(row));
+                const cols = [];
+                for (let x = 0; x < w; x++) {
+                    const col = solution.map(r => r[x]);
+                    cols.push(this.getHints(col));
+                }
+
+                return { rows, cols, solution };
+            }
+
+            getHints(arr) {
+                const hints = [];
+                let count = 0;
+                for (const val of arr) {
+                    if (val === 1) count++;
+                    else if (count > 0) {
+                        hints.push(count);
+                        count = 0;
+                    }
+                }
+                if (count > 0) hints.push(count);
+                if (hints.length === 0) hints.push(0); // Blank line
+                return hints;
+            }
+            setMode(m) { this.mode = m; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); document.getElementById(`btn-${m}`).classList.add('active'); }
+            render() {
+                this.board.style.gridTemplateColumns = `repeat(${this.gridW}, 30px)`;
+                this.board.innerHTML = '';
+                for (let y = 0; y < this.colHintMax; y++) {
+                    for (let x = 0; x < this.rowHintMax; x++) this.createCell('hint');
+                    for (let x = 0; x < this.width; x++) {
+                        const hints = this.data.cols[x];
+                        const offset = this.colHintMax - hints.length;
+                        this.createCell('hint', (y >= offset) ? hints[y - offset] : '');
+                    }
+                }
+                for (let y = 0; y < this.height; y++) {
+                    const hints = this.data.rows[y];
+                    const offset = this.rowHintMax - hints.length;
+                    for (let h = 0; h < this.rowHintMax; h++) this.createCell('hint', (h >= offset) ? hints[h - offset] : '');
+                    for (let x = 0; x < this.width; x++) this.createCell('cell', '', x, y);
+                }
+            }
+            createCell(type, content = '', x = -1, y = -1) {
+                const el = document.createElement('div'); el.className = `cell ${type}`; el.textContent = content;
+                if (type === 'cell') {
+                    el.dataset.x = x; el.dataset.y = y;
+                    el.onclick = () => this.click(x, y);
+                    el.oncontextmenu = (e) => { e.preventDefault(); this.toggle(x, y, 2); };
+                    const s = this.state[y][x];
+                    if (s === 1) el.classList.add('filled'); if (s === 2) el.classList.add('crossed');
+                }
+                this.board.appendChild(el); return el;
+            }
+            click(x, y) { if (this.mode === 'fill') this.toggle(x, y, 1); else this.toggle(x, y, 2); }
+            toggle(x, y, type) { this.state[y][x] = (this.state[y][x] === type) ? 0 : type; this.updateCell(x, y); this.checkWin(); }
+            updateCell(x, y) {
+                const el = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+                el.className = 'cell'; const s = this.state[y][x];
+                if (s === 1) el.classList.add('filled'); if (s === 2) el.classList.add('crossed');
+            }
+            checkWin() {
+                // Check if user's solution produces correct hints (allows multiple valid solutions)
+                let match = true;
+
+                // Check all rows
+                for (let y = 0; y < this.height; y++) {
+                    const userRow = this.state[y].map(s => s === 1 ? 1 : 0);
+                    const userHints = this.getHints(userRow);
+                    const requiredHints = this.data.rows[y];
+                    if (JSON.stringify(userHints) !== JSON.stringify(requiredHints)) {
+                        match = false;
+                        break;
+                    }
+                }
+
+                // Check all columns
+                if (match) {
+                    for (let x = 0; x < this.width; x++) {
+                        const userCol = [];
+                        for (let y = 0; y < this.height; y++) {
+                            userCol.push(this.state[y][x] === 1 ? 1 : 0);
+                        }
+                        const userHints = this.getHints(userCol);
+                        const requiredHints = this.data.cols[x];
+                        if (JSON.stringify(userHints) !== JSON.stringify(requiredHints)) {
+                            match = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (match) {
+                    if (!window.sessionWins) window.sessionWins = 0;
+                    window.sessionWins++;
+                    if (window.confetti) window.confetti.celebrate();
+                    if (window.SoundManager) window.SoundManager.play('win');
+                    document.getElementById('overlay').classList.add('show');
+                }
+            }
+            reset() { this.init(); }
+            next() { document.getElementById('overlay').classList.remove('show'); this.level++; this.init(); }
+            saveAndExit() {
+                const dailyParam = this.gameMode === 'daily' ? '&daily=true' : '';
+                window.location.href = `../index.html?save=nonogram&wins=${window.sessionWins || 1}&time=0${dailyParam}`;
+            }
+        }
+        const game = new Nonogram();
+        window.game = game;
+    </script>
+    <script src="../js/confetti.js"></script>
+</body>
+
+</html>

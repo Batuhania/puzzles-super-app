@@ -1,0 +1,498 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Şifre Kırıcı - Bulmaca Super App</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/confetti.css">
+
+    <!-- Scripts -->
+    <script src="../js/theme.js"></script>
+    <script src="../js/sound.js"></script>
+    <script src="../js/i18n.js"></script>
+    <script src="../js/random.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        primary: '#3b82f6',
+                        accent: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .peg {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .peg:active {
+            transform: scale(0.9);
+        }
+
+        .peg.selected {
+            border-color: white;
+            box-shadow: 0 0 0 2px #3b82f6;
+        }
+
+        .c-0 {
+            background: #ef4444;
+        }
+
+        /* Red */
+        .c-1 {
+            background: #3b82f6;
+        }
+
+        /* Blue */
+        .c-2 {
+            background: #10b981;
+        }
+
+        /* Green */
+        .c-3 {
+            background: #f59e0b;
+        }
+
+        /* Orange */
+        .c-4 {
+            background: #a855f7;
+        }
+
+        /* Purple */
+        .c-5 {
+            background: #ec4899;
+        }
+
+        /* Pink */
+        .c-empty {
+            background: #334155;
+            border: 2px dashed #475569;
+        }
+
+        .feedback-peg {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .f-black {
+            background: #000;
+            border: 1px solid #333;
+        }
+
+        /* Correct Pos */
+        .f-white {
+            background: #fff;
+            border: 1px solid #ccc;
+        }
+
+        /* Wrong Pos */
+        .f-empty {
+            background: transparent;
+            border: 1px solid #444;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 4px;
+        }
+
+        .row.active {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gray-50 dark:bg-darker text-gray-800 dark:text-gray-100 min-h-screen flex flex-col font-['Inter'] transition-colors duration-300 select-none">
+
+    <!-- Header -->
+    <header
+        class="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-white/80 dark:bg-dark/80 backdrop-blur-sm sticky top-0 z-10">
+        <a href="../index.html" class="flex items-center gap-2 group">
+            <div
+                class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                ←</div>
+            <h1 class="font-bold text-lg tracking-tight" data-i18n="game_mastermind">Şifre Kırıcı</h1>
+        </a>
+
+    </header>
+
+    <!-- Game Area -->
+    <main class="flex-1 flex flex-col p-4 max-w-md mx-auto w-full">
+        <div class="mode-selector">
+            <button id="btn-random" class="mode-btn random active" onclick="Mastermind.newGame('random')"
+                data-i18n="btn_random">🎲
+                Rastgele</button>
+            <button id="btn-daily" class="mode-btn daily" onclick="Mastermind.newGame('daily')" data-i18n="btn_daily">📅
+                Günlük</button>
+        </div>
+
+        <div id="modeBadge" class="text-center mb-4 text-xs font-bold text-gray-500" data-i18n="random_mode">RASTGELE
+            MOD</div>
+
+        <div id="board" class="flex-1 overflow-y-auto mb-4 min-h-[300px]">
+            <!-- Rows go here -->
+        </div>
+
+        <!-- Palette (Input) -->
+        <div
+            class="mt-auto bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xl">
+            <div class="flex justify-between mb-4">
+                <div id="currentGuess" class="flex gap-2">
+                    <!-- Current active guess pegs -->
+                </div>
+                <button id="checkBtn" onclick="Mastermind.submitGuess()"
+                    class="bg-primary text-white font-bold py-2 px-6 rounded-lg shadow-lg transform active:scale-95 transition-all w-full"
+                    data-i18n="btn_check">
+                    DENE
+                </button>
+            </div>
+            <div class="flex items-center gap-3 mb-4">
+                <button onclick="Mastermind.showTutorial()"
+                    class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 transition">?</button>
+                <div id="remainingRows" class="font-mono text-xl font-bold text-primary">10</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wider font-semibold" data-i18n="label_attempts">Hak
+                </div>
+            </div>
+            <div class="game-container">
+                <!-- Daily Mode Badge -->
+                <div id="daily-badge" class="daily-mode-badge" style="display: none;">📅 GÜNLÜK BULMACA</div>
+
+
+            </div>
+            <div class="flex justify-between gap-1">
+                <div class="peg c-0" onclick="Mastermind.selectColor(0)"></div>
+                <div class="peg c-1" onclick="Mastermind.selectColor(1)"></div>
+                <div class="peg c-2" onclick="Mastermind.selectColor(2)"></div>
+                <div class="peg c-3" onclick="Mastermind.selectColor(3)"></div>
+                <div class="peg c-4" onclick="Mastermind.selectColor(4)"></div>
+                <div class="peg c-5" onclick="Mastermind.selectColor(5)"></div>
+                <div class="peg c-empty flex items-center justify-center text-xs text-gray-400 font-bold"
+                    onclick="Mastermind.backspace()">⌫</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tutorial Overlay -->
+    <div id="tutorialOverlay" class="overlay">
+        <div
+            class="bg-white dark:bg-gray-900 p-8 rounded-2xl text-center max-w-sm w-full mx-4 shadow-2xl border border-gray-200 dark:border-gray-800">
+            <div class="text-4xl mb-4">🕵️‍♂️</div>
+            <h2 data-i18n="tutorial_title">Nasıl Oynanır?</h2>
+            <div class="text-left text-sm text-gray-500 dark:text-gray-400 space-y-3 mb-6">
+                <p data-i18n="tut_mastermind_1">1. 4 Renkli gizli kodu bulmalısın.</p>
+                <p data-i18n="tut_mastermind_2">2. Renkleri seç ve <strong>Dene</strong> butonuna bas.</p>
+                <p data-i18n="tut_mastermind_3">3. <strong>Siyah İpucu:</strong> Hem renk hem yer doğru.</p>
+                <p data-i18n="tut_mastermind_4">4. <strong>Beyaz İpucu:</strong> Renk doğru ama yer yanlış.</p>
+            </div>
+            <button onclick="document.getElementById('tutorialOverlay').classList.remove('show')"
+                class="w-full py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-bold transition"
+                data-i18n="btn_understood">Anladım</button>
+        </div>
+    </div>
+
+    <!-- Win/Lose Overlay -->
+    <div id="winOverlay" class="overlay">
+        <div
+            class="bg-white dark:bg-gray-900 p-8 rounded-2xl text-center max-w-sm w-full mx-4 shadow-2xl border border-gray-200 dark:border-gray-800 transform scale-95 transition-transform duration-300">
+            <div id="endIcon" class="text-6xl mb-4">🕵️‍♂️</div>
+            <h2 id="endTitle" class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Şifre Kırıldı!</h2>
+            <p id="endDesc" class="text-gray-500 mb-6">Gizli kodu başarıyla çözdün.</p>
+
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 mb-6">
+                <div class="text-gray-500 text-xs uppercase mb-2">Gizli Şifre</div>
+                <div id="secretCodeDisplay" class="flex justify-center gap-2">
+                    <!-- Revealed Code -->
+                </div>
+            </div>
+
+            <button id="winBtn"
+                class="w-full py-3.5 rounded-xl bg-primary hover:bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/30 transition mb-3">
+                Ana Menü
+            </button>
+            <button onclick="Mastermind.reset()"
+                class="w-full py-3.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold transition">
+                Yeni Oyun
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/confetti.js"></script>
+    <script>
+        const Mastermind = {
+            secret: [],
+            currentGuess: [],
+            history: [],
+            maxRows: 10,
+            colors: 6,
+            mode: 'random',
+            active: true,
+            rng: null, // Add rng property
+
+            init() {
+                // Check URL params
+                const urlParams = new URLSearchParams(window.location.search);
+                const modeParam = urlParams.get('mode');
+                this.newGame(modeParam === 'daily' ? 'daily' : 'random');
+            },
+
+            newGame(mode) {
+                this.mode = mode;
+                this.active = true;
+                this.currentGuess = [];
+                this.history = [];
+
+                // Update UI Buttons
+                document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+                if (mode === 'daily') {
+                    document.getElementById('btn-daily').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'flex'; // Changed to flex for centering
+                    const seed = SeededRandom.getDailySeed();
+                    this.rng = new SeededRandom(seed);
+                    document.getElementById('daily-badge').textContent = `📅 ${getText('daily_puzzle_badge')} #${seed % 1000}`;
+                    document.getElementById('modeBadge').style.display = 'none'; // Hide old badge
+                } else {
+                    document.getElementById('btn-random').classList.add('active');
+                    document.getElementById('daily-badge').style.display = 'none';
+                    this.rng = new SeededRandom(Date.now());
+                    document.getElementById('modeBadge').textContent = getText('random_mode');
+                    document.getElementById('modeBadge').className = 'text-center mb-4 text-xs font-bold text-gray-500';
+                    document.getElementById('modeBadge').style.display = 'block'; // Show old badge
+                }
+
+                // Generate Secret Code (4 pegs, 0-5)
+                this.secret = [];
+                for (let i = 0; i < 4; i++) {
+                    this.secret.push(this.rng.nextInt(0, 5));
+                }
+
+                // Debug log (Hidden in console)
+                console.log('Secret:', this.secret);
+
+                this.render();
+                document.getElementById('winOverlay').classList.remove('show');
+            },
+
+            reset() { this.newGame(this.mode); },
+
+            selectColor(colorIdx) {
+                if (!this.active || this.currentGuess.length >= 4) return;
+
+                if (window.SoundManager) window.SoundManager.play('click');
+                this.currentGuess.push(colorIdx);
+                this.render();
+            },
+
+            showTutorial() {
+                document.getElementById('tutorialOverlay').classList.add('show');
+            },
+
+            backspace() {
+                if (!this.active || this.currentGuess.length === 0) return;
+                this.currentGuess.pop();
+                if (window.SoundManager) window.SoundManager.play('click');
+                this.render();
+            },
+
+            submitGuess() {
+                if (!this.active || this.currentGuess.length !== 4) {
+                    if (window.SoundManager) window.SoundManager.play('error');
+                    return;
+                }
+
+                // Calculate Feedback
+                const feedback = this.getFeedback(this.currentGuess, this.secret);
+
+                this.history.push({
+                    guess: [...this.currentGuess],
+                    feedback: feedback
+                });
+
+                this.currentGuess = [];
+
+                if (window.SoundManager) window.SoundManager.play('move');
+
+                // Check Win/Loss
+                if (feedback.black === 4) {
+                    this.gameOver(true);
+                } else if (this.history.length >= this.maxRows) {
+                    this.gameOver(false);
+                }
+
+                this.render();
+
+                // Auto scroll to bottom
+                const board = document.getElementById('board');
+                board.scrollTop = board.scrollHeight;
+            },
+
+            getFeedback(guess, secret) {
+                let black = 0;
+                let white = 0;
+                let sCopy = [...secret];
+                let gCopy = [...guess];
+
+                // 1. Check exact matches (Black)
+                for (let i = 0; i < 4; i++) {
+                    if (gCopy[i] === sCopy[i]) {
+                        black++;
+                        gCopy[i] = -1; // Mark handled
+                        sCopy[i] = -2; // Mark handled
+                    }
+                }
+
+                // 2. Check color matches (White)
+                for (let i = 0; i < 4; i++) {
+                    if (gCopy[i] !== -1) {
+                        const idx = sCopy.indexOf(gCopy[i]);
+                        if (idx !== -1) {
+                            white++;
+                            sCopy[idx] = -2; // Mark handled
+                        }
+                    }
+                }
+
+                return { black, white };
+            },
+
+            gameOver(win) {
+                this.active = false;
+
+                const overlay = document.getElementById('winOverlay');
+                const title = document.getElementById('endTitle');
+                const desc = document.getElementById('endDesc');
+                const icon = document.getElementById('endIcon');
+
+                // Reveal code
+                const codeDiv = document.getElementById('secretCodeDisplay');
+                codeDiv.innerHTML = this.secret.map(c => `<div class="peg c-${c}" style="width:24px;height:24px;cursor:default;"></div>`).join('');
+
+                if (win) {
+                    if (window.SoundManager) window.SoundManager.play('win');
+                    if (window.confetti) window.confetti.celebrate();
+                    title.textContent = "ŞİFRE KIRILDI!";
+                    title.className = "text-3xl font-bold mb-2 text-green-500";
+                    desc.textContent = `${this.history.length} denemede başardın.`;
+                    icon.textContent = "🕵️‍♂️";
+                    // Build save URL with daily flag
+                    const saveUrl = `../index.html?save=mastermind&wins=1&time=${this.history.length}&daily=${this.mode === 'daily'}`;
+                    document.getElementById('winBtn').onclick = () => window.location.href = saveUrl;
+                    document.getElementById('winBtn').style.display = 'block';
+                } else {
+                    if (window.SoundManager) window.SoundManager.play('error');
+                    title.textContent = "BAŞARISIZ";
+                    title.className = "text-3xl font-bold mb-2 text-red-500";
+                    desc.textContent = getText('msg_attempts_over');
+                    icon.textContent = "💥";
+                    // For losing, no win param
+                    document.getElementById('winBtn').onclick = () => window.location.href = '../index.html';
+                }
+
+                overlay.classList.add('show');
+            },
+
+            render() {
+                const board = document.getElementById('board');
+                board.innerHTML = '';
+
+                // Render History
+                this.history.forEach((turn, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'row';
+                    row.innerHTML = `
+                        <div class="text-xs text-center text-gray-500 w-4 font-mono">${idx + 1}</div>
+                        <div class="flex gap-2 border-r border-gray-600 pr-3 mr-1">
+                            ${turn.guess.map(c => `<div class="peg c-${c}" style="width:24px;height:24px;cursor:default;"></div>`).join('')}
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 w-8">
+                            ${Array(turn.feedback.black).fill('<div class="feedback-peg f-black"></div>').join('')}
+                            ${Array(turn.feedback.white).fill('<div class="feedback-peg f-white"></div>').join('')}
+                            ${Array(4 - turn.feedback.black - turn.feedback.white).fill('<div class="feedback-peg f-empty"></div>').join('')}
+                        </div>
+                    `;
+                    board.appendChild(row);
+                });
+
+                // Render Current Active Row
+                if (this.active) {
+                    const currentRow = document.createElement('div');
+                    currentRow.className = 'row active';
+                    let pegsHTML = '';
+                    for (let i = 0; i < 4; i++) {
+                        if (i < this.currentGuess.length) {
+                            pegsHTML += `<div class="peg c-${this.currentGuess[i]}" title="Rengi Sil" onclick="Mastermind.backspace()"></div>`;
+                        } else {
+                            pegsHTML += `<div class="peg c-empty"></div>`;
+                        }
+                    }
+
+                    currentRow.innerHTML = `
+                        <div class="text-xs text-center text-primary w-4 font-bold font-mono">${this.history.length + 1}</div>
+                        <div class="flex gap-2 border-r border-blue-500/30 pr-3 mr-1">
+                            ${pegsHTML}
+                        </div>
+                        <div class="text-xs text-gray-400 italic">Tahmin...</div>
+                    `;
+                    board.appendChild(currentRow);
+                }
+
+                // Update Current Guess Input Display (Small dots in control area)
+                const guessDiv = document.getElementById('currentGuess');
+                guessDiv.innerHTML = this.currentGuess.map(c => `<div class="w-2 h-2 rounded-full c-${c}"></div>`).join('');
+            }
+        };
+
+        window.Mastermind = Mastermind;
+        Mastermind.init();
+    </script>
+</body>
+
+</html>
