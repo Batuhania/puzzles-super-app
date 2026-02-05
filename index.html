@@ -44,7 +44,7 @@
     <!-- HEADER -->
     <header class="app-header" style="position: relative;">
         <!-- Language Switcher (Left) -->
-        <div class="lang-switcher" style="position: absolute; top: 20px; left: 20px; display: flex; gap: 6px;">
+        <div class="lang-switcher">
             <button onclick="setLanguage('tr')" class="lang-btn" data-lang="tr" title="Türkçe"
                 style="font-weight: bold; font-size: 14px;">TR</button>
             <button onclick="setLanguage('en')" class="lang-btn" data-lang="en" title="English"
@@ -53,14 +53,13 @@
 
         <h1 class="app-title" data-i18n="app_title">🧩 Bulmacalar</h1>
         <p class="app-subtitle" data-i18n="app_subtitle">Popüler zeka oyunları bir arada</p>
-        <button onclick="ThemeStore.toggleMode()" class="theme-btn theme-toggler"
-            style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; font-size: 1.5rem; cursor: pointer; padding: 10px; border-radius: 50%;">🌙</button>
-        <button onclick="SoundManager.toggle(); this.textContent = SoundManager.enabled ? '🔊' : '🔇'" class="sound-btn"
-            style="position: absolute; top: 20px; right: 70px; background: rgba(255,255,255,0.1); border: none; font-size: 1.5rem; cursor: pointer; padding: 10px; border-radius: 50%;">🔊</button>
+        <button onclick="ThemeStore.toggleMode()" class="theme-btn theme-toggler">🌙</button>
+        <button onclick="SoundManager.toggle(); this.textContent = SoundManager.enabled ? '🔊' : '🔇'"
+            class="sound-btn">🔊</button>
     </header>
 
     <!-- FLOATING BUTTONS -->
-    <div class="fixed bottom-5 right-5 flex gap-3 z-[9999]">
+    <div class="fab-container fixed bottom-5 right-5 flex gap-3 z-[9999]">
         <button onclick="openThemeStore()"
             class="text-white px-5 py-4 rounded-full shadow-2xl flex items-center gap-2 font-bold transition-transform hover:scale-105 border-2 border-white/20"
             style="background-color: var(--primary);">

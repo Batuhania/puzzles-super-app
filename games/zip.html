@@ -468,20 +468,25 @@
                         // UI: Show Custom Win Modal
                         ui.win.innerHTML = `
                             <div class="win-modal" style="background: #1e2028; padding: 2rem; border-radius: 1rem; border: 1px solid #3b82f6; text-align: center; max-width: 90%;">
-                                <h2 style="font-size: 2rem; margin-bottom: 1rem;">Tebrikler! 🎉</h2>
-                                <p style="color: #9ca3af; margin-bottom: 2rem;">Bölümü tamamladın.</p>
+                                <h2 style="font-size: 2rem; margin-bottom: 1rem;" data-i18n="win_title">Tebrikler! 🎉</h2>
+                                <p style="color: #9ca3af; margin-bottom: 2rem;" data-i18n="win_message">Bölümü tamamladın.</p>
                                 
                                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                                    <button id="keep-playing-btn" style="background: #3b82f6; color: white; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                                        Sonraki Bölüm (Devam Et)
+                                    <button id="keep-playing-btn" style="background: #3b82f6; color: white; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;" data-i18n="btn_next">
+                                        Sonraki Bölüm
                                     </button>
-                                    <button id="save-exit-btn" style="background: #10b981; color: white; padding: 12px; border-radius: 8px; font-weight: bold; border: 2px solid white; cursor: pointer;">
+                                    <button id="save-exit-btn" style="background: #10b981; color: white; padding: 12px; border-radius: 8px; font-weight: bold; border: 2px solid white; cursor: pointer;" data-i18n="btn_save_exit">
                                         💾 Kaydet ve Ana Menüye Dön
                                     </button>
                                 </div>
                             </div>
                         `;
                         ui.win.classList.remove('hidden');
+
+                        // Apply i18n to the dynamically created content
+                        if (window.i18n && window.i18n.apply) {
+                            window.i18n.apply();
+                        }
 
                         // Event Listeners for new buttons
                         document.getElementById('keep-playing-btn').onclick = () => {

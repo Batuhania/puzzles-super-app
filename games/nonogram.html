@@ -270,8 +270,36 @@
                 if (s === 1) el.classList.add('filled'); if (s === 2) el.classList.add('crossed');
             }
             checkWin() {
+                // Check if user's solution produces correct hints (allows multiple valid solutions)
                 let match = true;
-                for (let y = 0; y < this.height; y++) for (let x = 0; x < this.width; x++) if ((this.state[y][x] === 1 ? 1 : 0) !== this.data.solution[y][x]) match = false;
+
+                // Check all rows
+                for (let y = 0; y < this.height; y++) {
+                    const userRow = this.state[y].map(s => s === 1 ? 1 : 0);
+                    const userHints = this.getHints(userRow);
+                    const requiredHints = this.data.rows[y];
+                    if (JSON.stringify(userHints) !== JSON.stringify(requiredHints)) {
+                        match = false;
+                        break;
+                    }
+                }
+
+                // Check all columns
+                if (match) {
+                    for (let x = 0; x < this.width; x++) {
+                        const userCol = [];
+                        for (let y = 0; y < this.height; y++) {
+                            userCol.push(this.state[y][x] === 1 ? 1 : 0);
+                        }
+                        const userHints = this.getHints(userCol);
+                        const requiredHints = this.data.cols[x];
+                        if (JSON.stringify(userHints) !== JSON.stringify(requiredHints)) {
+                            match = false;
+                            break;
+                        }
+                    }
+                }
+
                 if (match) {
                     if (!window.sessionWins) window.sessionWins = 0;
                     window.sessionWins++;
